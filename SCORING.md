@@ -1,6 +1,6 @@
 # 🏆 SCORING RUBRIC - Debugging Championship
 
-## Total Points: 300
+## Total Points: 420
 
 ---
 
@@ -75,6 +75,33 @@
 
 ---
 
+## 📊 Section 4: Logical Tracing (120 points)
+
+### Test Cases (110 points)
+| Test | Points | Bug Type |
+|------|--------|----------|
+| `test_discount_boundaries` | 10 | Off-by-one (>= vs >) |
+| `test_both_fields_required` | 10 | Boolean logic (AND vs OR) |
+| `test_no_majority` / `test_has_majority` | 15 | Missing verification step |
+| `test_standard_calculation` / `test_annual_compounding` | 15 | Operator precedence |
+| `test_basic_merge` / `test_unequal_lengths` | 10 | Index error (i+1 vs i) |
+| `test_all_conditions_required` | 10 | Boolean logic (AND vs OR) |
+| `test_find_single_element` / `test_find_last_element` | 10 | Loop boundary (< vs <=) |
+| `test_cycle_detection` | 15 | Pointer advancement |
+| `test_progressive_tax` / `test_two_brackets` | 7.5 | Condition precedence |
+| `test_shortest_path` | 7.5 | Mutable state / list copy |
+
+### Hidden Bug — Bonus (10 points)
+- Fibonacci missing base case for F(0) (10 pts)
+
+### Deductions
+- Level 1 hint used: −2 pts per hint
+- Level 2 hint used: −4 pts per hint
+- Level 3 hint used: −8 pts per hint
+- Rewrote function entirely: −5 pts per function
+
+---
+
 ## 🎖️ Bonus Achievements
 
 ### Speed Demon (Max +20 points)
@@ -101,12 +128,12 @@
 
 | Score Range | Grade | Achievement |
 |-------------|-------|-------------|
-| 270-300+ | S | Master Debugger |
-| 240-269 | A | Expert |
-| 210-239 | B | Proficient |
-| 180-209 | C | Competent |
-| 150-179 | D | Developing |
-| < 150 | F | Need More Practice |
+| 380-420+ | S | Master Debugger |
+| 330-379 | A | Expert |
+| 280-329 | B | Proficient |
+| 230-279 | C | Competent |
+| 180-229 | D | Developing |
+| < 180 | F | Need More Practice |
 
 ---
 
@@ -126,13 +153,15 @@ Create `SUBMISSION.md` in your repo:
 - Section 1: X/100
 - Section 2: X/100
 - Section 3: X/100
+- Section 4: X/120
 - Bonus: X/50
-- **Total: X/300**
+- **Total: X/420**
 
 ## Time Taken
 - Section 1: X minutes
 - Section 2: X minutes
 - Section 3: X minutes
+- Section 4: X minutes
 - Total: X minutes
 
 ## Bugs Fixed
@@ -144,6 +173,9 @@ Create `SUBMISSION.md` in your repo:
 1. ...
 
 ### Section 3
+1. ...
+
+### Section 4
 1. ...
 
 ## Hidden Bugs Found

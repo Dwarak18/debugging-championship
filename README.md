@@ -13,9 +13,10 @@ Welcome to the **Debugging Championship** - a three-section coding event designe
 | 1 | Multi-File Debugging Lab | 45 min | 100 | ⭐⭐⭐ |
 | 2 | Broken Project Recovery | 40 min | 100 | ⭐⭐⭐⭐ |
 | 3 | Memory & Deadlock Simulation | 50 min | 100 | ⭐⭐⭐⭐⭐ |
+| 4 | Logical Tracing | 35 min | 120 | ⭐⭐⭐⭐ |
 
-**Total Duration:** 135 minutes (2 hours 15 minutes)  
-**Total Points:** 300
+**Total Duration:** 170 minutes (2 hours 50 minutes)  
+**Total Points:** 420
 
 ---
 
@@ -40,6 +41,7 @@ pip install -r requirements.txt
 pytest section1-multifile-debug/tests/
 pytest section2-broken-recovery/tests/
 pytest section3-memory-deadlock/tests/
+pytest section4-logical-tracing/tests/
 ```
 
 **Expected Result:** All tests should FAIL initially. Your job is to fix them.
@@ -65,7 +67,7 @@ pytest section3-memory-deadlock/tests/
 ### 🏆 Victory Condition
 ```bash
 pytest --tb=short
-# Must show: 30 passed
+# Must show: all passed across all sections
 ```
 
 ---
@@ -114,6 +116,15 @@ pytest --tb=short
 
 ---
 
+### Section 4: Logical Tracing — Code Detective
+**Scenario:** Ex-employee planted logic bombs in 10 production functions  
+**Bugs:** 10 algorithmic logic errors + 1 hidden bonus  
+**Focus:** Execution tracing, boolean logic, boundary conditions, algorithmic precision
+
+[Enter Section 4 →](./section4-logical-tracing/)
+
+---
+
 ## 📊 Leaderboard
 
 Submit your results via GitHub Pull Request:
@@ -136,6 +147,9 @@ After completing this event, you will master:
 - Configuration validation
 - Error handling patterns
 - Test-driven debugging
+- Manual code execution tracing
+- Boolean logic and boundary condition analysis
+- Algorithmic bug identification
 
 ---
 
