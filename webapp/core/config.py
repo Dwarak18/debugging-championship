@@ -6,6 +6,13 @@ Copy .env.example to .env and fill in the values.
 import os
 from typing import List
 
+# Load .env file if present (dev convenience)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=False)   # don't override already-set env vars
+except ImportError:
+    pass
+
 
 class Settings:
     ENV: str                   = os.getenv("ENV", "development")
@@ -26,7 +33,7 @@ class Settings:
 
     # Admin
     ADMIN_USERNAME: str        = os.getenv("ADMIN_USERNAME", "admin")
-    ADMIN_PASSWORD: str        = os.getenv("ADMIN_PASSWORD", "admin")   # override in prod!
+    ADMIN_PASSWORD: str        = os.getenv("ADMIN_PASSWORD", "admin")   # override in .env!
 
 
 settings = Settings()

@@ -10,9 +10,11 @@ import os
 
 from webapp.routers import auth, leaderboard, runner, info, admin
 from webapp.core.config import settings
+from webapp.core.database import init_db
 
 
 def create_app() -> FastAPI:
+    init_db()   # ensure tables exist on every startup
     app = FastAPI(
         title="Debugging Championship",
         description="Elite multi-section debugging event platform",
