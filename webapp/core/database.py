@@ -1,173 +1,201 @@
 """
-SQLite-backed database.
+PostgreSQL-backed database with connection pooling.
 
-Student accounts are PRE-CREATED by admin (via Google Form import).
-Students cannot self-register — they login with credentials issued to them.
+Handles 400+ concurrent users without bottlenecking via
+psycopg2.pool.ThreadedConnectionPool (min=4, max=40 connections).
+
+Student accounts are PRE-CREATED by admin (imported from Google Form).
 """
 
-import sqlite3
-import os
-from datetime import datetime, timezone
+import psycopg2
+import psycopg2.extras
+from psycopg2.pool import ThreadedConnectionPool
+from contextlib import contextmanager
 from typing import List, Dict, Optional
 
 from webapp.core.config import settings
 
+# ── Connection pool ───────────────────────────────────────────────────────────
+_pool: Optional[ThreadedConnectionPool] = None
 
-def _connect() -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(settings.DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(settings.DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
 
+def _get_pool() -> ThreadedConnectionPool:
+    global _pool
+    if _pool is None:
+        _pool = ThreadedConnectionPool(minconn=4, maxconn=40, dsn=settings.DATABASE_URL)
+    return _pool
+
+
+@contextmanager
+def _conn():
+    pool = _get_pool()
+    conn = pool.getconn()
+    conn.autocommit = False
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        pool.putconn(conn)
+
+
+def _row(cur) -> Optional[Dict]:
+    r = cur.fetchone()
+    return dict(r) if r else None
+
+def _rows(cur) -> List[Dict]:
+    return [dict(r) for r in cur.fetchall()]
+
+RD = psycopg2.extras.RealDictCursor
+
+
+# ── Schema ────────────────────────────────────────────────────────────────────
 
 def init_db():
-    """Create tables if they don't exist."""
-    with _connect() as conn:
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS students (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                username     TEXT    UNIQUE NOT NULL,
-                password_hash TEXT   NOT NULL,
-                full_name    TEXT    DEFAULT '',
-                email        TEXT    UNIQUE,
-                college      TEXT    DEFAULT '',
-                team         TEXT    DEFAULT '',
-                is_active    INTEGER DEFAULT 1,
-                created_at   TEXT,
-                last_login   TEXT
-            );
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS students (
+                    id            SERIAL PRIMARY KEY,
+                    username      TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    full_name     TEXT DEFAULT '',
+                    email         TEXT,
+                    college       TEXT DEFAULT '',
+                    team          TEXT DEFAULT '',
+                    is_active     BOOLEAN DEFAULT TRUE,
+                    created_at    TIMESTAMPTZ DEFAULT NOW(),
+                    last_login    TIMESTAMPTZ
+                );
 
-            CREATE TABLE IF NOT EXISTS submissions (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                username     TEXT NOT NULL,
-                section      INTEGER NOT NULL,
-                score        REAL NOT NULL,
-                passed_tests INTEGER NOT NULL,
-                total_tests  INTEGER NOT NULL,
-                time_taken   REAL,
-                submitted_at TEXT,
-                FOREIGN KEY (username) REFERENCES students(username)
-            );
+                CREATE TABLE IF NOT EXISTS submissions (
+                    id           SERIAL PRIMARY KEY,
+                    username     TEXT NOT NULL,
+                    section      INTEGER NOT NULL,
+                    score        REAL NOT NULL,
+                    passed_tests INTEGER NOT NULL,
+                    total_tests  INTEGER NOT NULL,
+                    time_taken   REAL,
+                    submitted_at TIMESTAMPTZ DEFAULT NOW()
+                );
 
-            CREATE TABLE IF NOT EXISTS leaderboard (
-                username     TEXT PRIMARY KEY,
-                full_name    TEXT DEFAULT '',
-                college      TEXT DEFAULT '',
-                team         TEXT DEFAULT '',
-                total_score  REAL NOT NULL DEFAULT 0,
-                section1     REAL DEFAULT 0,
-                section2     REAL DEFAULT 0,
-                section3     REAL DEFAULT 0,
-                section4     REAL DEFAULT 0,
-                updated_at   TEXT,
-                FOREIGN KEY (username) REFERENCES students(username)
-            );
-        """)
+                CREATE TABLE IF NOT EXISTS leaderboard (
+                    username    TEXT PRIMARY KEY,
+                    full_name   TEXT DEFAULT '',
+                    college     TEXT DEFAULT '',
+                    team        TEXT DEFAULT '',
+                    total_score REAL NOT NULL DEFAULT 0,
+                    section1    REAL DEFAULT 0,
+                    section2    REAL DEFAULT 0,
+                    section3    REAL DEFAULT 0,
+                    section4    REAL DEFAULT 0,
+                    updated_at  TIMESTAMPTZ DEFAULT NOW()
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_lb_total ON leaderboard(total_score DESC);
+            """)
 
 
-# ── Student management (admin) ────────────────────────────────────────────────
+# ── Student management ────────────────────────────────────────────────────────
 
-def create_student(username: str, password_hash: str, full_name: str = "",
-                   email: str = "", college: str = "", team: str = "") -> bool:
-    """Create a pre-registered student. Returns False if username/email taken."""
+def create_student(username, password_hash, full_name="", email="", college="", team="") -> bool:
     try:
-        now = datetime.now(timezone.utc).isoformat()
-        with _connect() as conn:
-            conn.execute(
-                """INSERT INTO students
-                   (username, password_hash, full_name, email, college, team, created_at)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (username, password_hash, full_name, email or None, college, team, now),
-            )
-            conn.execute(
-                """INSERT OR IGNORE INTO leaderboard
-                   (username, full_name, college, team, updated_at)
-                   VALUES (?,?,?,?,?)""",
-                (username, full_name, college, team, now),
-            )
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO students (username,password_hash,full_name,email,college,team)
+                       VALUES (%s,%s,%s,NULLIF(%s,''),  %s,%s)""",
+                    (username, password_hash, full_name, email, college, team)
+                )
         return True
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
         return False
 
 
-def get_student(username: str) -> Optional[Dict]:
-    with _connect() as conn:
-        row = conn.execute(
-            "SELECT * FROM students WHERE username = ? AND is_active = 1", (username,)
-        ).fetchone()
-    return dict(row) if row else None
+def get_student(username) -> Optional[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("SELECT * FROM students WHERE username=%s AND is_active=TRUE", (username,))
+            return _row(cur)
 
 
 def list_students() -> List[Dict]:
-    with _connect() as conn:
-        rows = conn.execute(
-            "SELECT id, username, full_name, email, college, team, is_active, created_at, last_login "
-            "FROM students ORDER BY id"
-        ).fetchall()
-    return [dict(r) for r in rows]
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("SELECT * FROM students ORDER BY created_at DESC")
+            return _rows(cur)
 
 
-def update_last_login(username: str):
-    with _connect() as conn:
-        conn.execute(
-            "UPDATE students SET last_login = ? WHERE username = ?",
-            (datetime.now(timezone.utc).isoformat(), username),
-        )
+def update_last_login(username):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE students SET last_login=NOW() WHERE username=%s", (username,))
 
 
-def deactivate_student(username: str):
-    with _connect() as conn:
-        conn.execute("UPDATE students SET is_active = 0 WHERE username = ?", (username,))
+def deactivate_student(username):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE students SET is_active=FALSE WHERE username=%s", (username,))
 
 
-def reset_student_password(username: str, new_hash: str):
-    with _connect() as conn:
-        conn.execute(
-            "UPDATE students SET password_hash = ? WHERE username = ?", (new_hash, username)
-        )
+def reset_student_password(username, new_hash):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE students SET password_hash=%s WHERE username=%s", (new_hash, username))
 
 
-def upsert_score(username: str, section: int, score: float,
-                 passed: int, total: int, time_taken: float = 0.0):
-    """Record a submission and update the leaderboard."""
-    col = f"section{section}"
-    with _connect() as conn:
-        conn.execute(
-            """INSERT INTO submissions
-               (username, section, score, passed_tests, total_tests, time_taken, submitted_at)
-               VALUES (?,?,?,?,?,?,?)""",
-            (username, section, score, passed, total, time_taken,
-             datetime.now(timezone.utc).isoformat()),
-        )
-        # Keep best score per section
-        conn.execute(f"""
-            UPDATE leaderboard
-            SET {col} = MAX({col}, ?),
-                total_score = (
-                    COALESCE(section1,0) + COALESCE(section2,0) +
-                    COALESCE(section3,0) + COALESCE(section4,0)
-                ),
-                updated_at = ?
-            WHERE username = ?
-        """, (score, datetime.now(timezone.utc).isoformat(), username))
+# ── Leaderboard ───────────────────────────────────────────────────────────────
+
+def upsert_score(username, section, score, passed_tests, total_tests, time_taken,
+                 full_name="", college="", team=""):
+    sec = f"section{section}"
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO submissions (username,section,score,passed_tests,total_tests,time_taken) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                (username, section, score, passed_tests, total_tests, time_taken)
+            )
+            cur.execute(f"""
+                INSERT INTO leaderboard (username,full_name,college,team,{sec},total_score)
+                VALUES (%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (username) DO UPDATE SET
+                  full_name   = EXCLUDED.full_name,
+                  college     = EXCLUDED.college,
+                  team        = EXCLUDED.team,
+                  {sec}       = GREATEST(leaderboard.{sec}, EXCLUDED.{sec}),
+                  total_score = (
+                    GREATEST(leaderboard.section1, CASE WHEN %s=1 THEN EXCLUDED.{sec} ELSE leaderboard.section1 END) +
+                    GREATEST(leaderboard.section2, CASE WHEN %s=2 THEN EXCLUDED.{sec} ELSE leaderboard.section2 END) +
+                    GREATEST(leaderboard.section3, CASE WHEN %s=3 THEN EXCLUDED.{sec} ELSE leaderboard.section3 END) +
+                    GREATEST(leaderboard.section4, CASE WHEN %s=4 THEN EXCLUDED.{sec} ELSE leaderboard.section4 END)
+                  ),
+                  updated_at  = NOW()
+            """, (username, full_name, college, team, score, score,
+                  section, section, section, section))
 
 
-def get_leaderboard(limit: int = 50) -> List[Dict]:
-    with _connect() as conn:
-        rows = conn.execute("""
-            SELECT username, full_name, college, team,
-                   total_score, section1, section2, section3, section4, updated_at
-            FROM leaderboard
-            ORDER BY total_score DESC, updated_at ASC
-            LIMIT ?
-        """, (limit,)).fetchall()
-    return [dict(r) for r in rows]
+def get_leaderboard() -> List[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("""
+                SELECT username,full_name,college,team,
+                       total_score,section1,section2,section3,section4
+                FROM leaderboard ORDER BY total_score DESC, updated_at ASC
+            """)
+            return _rows(cur)
 
 
-def get_submissions(username: str) -> List[Dict]:
-    with _connect() as conn:
-        rows = conn.execute(
-            "SELECT * FROM submissions WHERE username = ? ORDER BY submitted_at DESC",
-            (username,),
-        ).fetchall()
-    return [dict(r) for r in rows]
+def get_user_scores(username) -> Optional[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("SELECT * FROM leaderboard WHERE username=%s", (username,))
+            return _row(cur)
+
+
+def reset_leaderboard():
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE submissions, leaderboard")

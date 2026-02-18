@@ -2,26 +2,45 @@ version: "3.9"
 
 services:
 
+  # ── PostgreSQL ───────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-dcuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dcpassword}
+      POSTGRES_DB:       ${POSTGRES_DB:-debugchamp}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dcuser} -d ${POSTGRES_DB:-debugchamp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    expose:
+      - "5432"
+
   # ── FastAPI Application ──────────────────────────────────────────────────
   app:
     build: .
     restart: unless-stopped
     env_file: .env
     environment:
-      ENV: ${ENV:-production}
-      SECRET_KEY: ${SECRET_KEY}
+      ENV:           ${ENV:-production}
+      SECRET_KEY:    ${SECRET_KEY}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      DB_PATH: /app/webapp/data/leaderboard.db
-      REPO_ROOT: /app
-    volumes:
-      - db_data:/app/webapp/data
+      DATABASE_URL:  postgresql://${POSTGRES_USER:-dcuser}:${POSTGRES_PASSWORD:-dcpassword}@db:5432/${POSTGRES_DB:-debugchamp}
+      REPO_ROOT:     /app
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     expose:
       - "8000"
 
@@ -31,12 +50,14 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       app:
         condition: service_healthy
 
 volumes:
-  db_data:
+  pg_data:
     driver: local

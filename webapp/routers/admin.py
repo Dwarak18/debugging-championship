@@ -19,7 +19,7 @@ from typing import Optional, List
 from webapp.core.security import hash_password
 from webapp.core.database import (
     create_student, list_students, deactivate_student,
-    reset_student_password, get_leaderboard
+    reset_student_password, get_leaderboard, reset_leaderboard as _db_reset_lb
 )
 from webapp.core.deps import require_admin
 
@@ -182,11 +182,5 @@ def deactivate(username: str):
 @router.delete("/leaderboard", dependencies=[Depends(require_admin)])
 def reset_leaderboard():
     """Wipe all scores (keeps student accounts)."""
-    import sqlite3
-    from webapp.core.config import settings as cfg
-    with sqlite3.connect(cfg.DB_PATH) as conn:
-        conn.execute("DELETE FROM submissions")
-        conn.execute(
-            "UPDATE leaderboard SET total_score=0, section1=0, section2=0, section3=0, section4=0"
-        )
+    _db_reset_lb()
     return {"message": "Leaderboard reset"}

@@ -23,8 +23,12 @@ class Settings:
     ALLOWED_HOSTS: List[str]   = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     ALLOWED_ORIGINS: List[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://localhost:3000").split(",")
 
-    # Leaderboard database path (SQLite for simplicity; swap for Postgres in prod)
-    DB_PATH: str               = os.getenv("DB_PATH", "webapp/data/leaderboard.db")
+    # PostgreSQL connection string
+    # Format: postgresql://user:password@host:port/dbname
+    DATABASE_URL: str          = os.getenv(
+        "DATABASE_URL",
+        "postgresql://dcuser:dcpassword@localhost:5432/debugchamp"
+    )
 
     # Test runner
     PYTEST_TIMEOUT: int        = int(os.getenv("PYTEST_TIMEOUT", "60"))   # seconds per run

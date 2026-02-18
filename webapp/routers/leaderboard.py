@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
-from webapp.core.database import get_leaderboard, upsert_score, get_submissions
+from webapp.core.database import get_leaderboard, upsert_score, get_user_scores
 from webapp.core.deps import get_current_user
 
 router = APIRouter()
@@ -27,7 +27,8 @@ class ScoreSubmission(BaseModel):
 @router.get("/")
 def leaderboard(limit: int = 50):
     """Public leaderboard — top N participants."""
-    entries = get_leaderboard(limit=min(limit, 100))
+    entries = get_leaderboard()
+    entries = entries[:min(limit, 200)]
     for i, row in enumerate(entries, 1):
         row["rank"] = i
     return {"leaderboard": entries, "count": len(entries)}
@@ -45,14 +46,18 @@ def submit_score(body: ScoreSubmission, user: dict = Depends(get_current_user)):
         username=user["sub"],
         section=body.section,
         score=body.score,
-        passed=body.passed_tests,
-        total=body.total_tests,
+        passed_tests=body.passed_tests,
+        total_tests=body.total_tests,
         time_taken=body.time_taken,
+        full_name=user.get("full_name", ""),
+        college=user.get("college", ""),
+        team=user.get("team", ""),
     )
     return {"message": "Score recorded", "section": body.section, "score": body.score}
 
 
 @router.get("/me")
 def my_scores(user: dict = Depends(get_current_user)):
-    """Return all submissions for the current user."""
-    return {"username": user["sub"], "submissions": get_submissions(user["sub"])}
+    """Return current user's leaderboard row."""
+    row = get_user_scores(user["sub"])
+    return {"username": user["sub"], "scores": row or {}}

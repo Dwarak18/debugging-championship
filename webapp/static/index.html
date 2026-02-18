@@ -501,9 +501,12 @@
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-let TOKEN    = localStorage.getItem("dc_token") || "";
-let USER     = JSON.parse(localStorage.getItem("dc_user") || "{}");
-let SEL_SEC  = 1;
+// Use var (not let/const) to avoid Temporal Dead Zone when api() triggers
+// doLogout() during page init before all declarations are reached.
+var TOKEN   = localStorage.getItem("dc_token") || "";
+var USER    = {};
+try { USER  = JSON.parse(localStorage.getItem("dc_user") || "{}"); } catch {}
+var SEL_SEC = 1;
 const SECTIONS = [
   {id:1, title:"Multi-File Debugging", duration:45, points:100, diff:"⭐⭐⭐"},
   {id:2, title:"Broken Project Recovery", duration:40, points:100, diff:"⭐⭐⭐⭐"},
