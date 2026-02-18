@@ -1,241 +1,828 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Debugging Championship 2026</title>
   <style>
+    /* ── Reset & Variables ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #0d1117; --surface: #161b22; --border: #30363d;
-      --accent: #f78166; --green: #3fb950; --red: #f85149;
-      --text: #e6edf3; --muted: #8b949e;
+      --bg:         #0a0e1a;
+      --surface:    #111827;
+      --surface2:   #1a2235;
+      --border:     #1f2d45;
+      --accent:     #6366f1;
+      --accent-h:   #818cf8;
+      --green:      #10b981;
+      --red:        #ef4444;
+      --yellow:     #f59e0b;
+      --text:       #f1f5f9;
+      --muted:      #64748b;
+      --radius:     10px;
+      font-size: 14px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--text);
+           font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+           min-height: 100vh; }
 
-    header { background: var(--surface); border-bottom: 1px solid var(--border);
-             padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
-    header h1 { font-size: 1.3rem; }
-    .badge { background: var(--accent); color: #000; border-radius: 4px;
-             padding: 2px 8px; font-size: .75rem; font-weight: 700; }
+    /* ── Utility ──────────────────────────────────────────────────────── */
+    .hidden    { display: none !important; }
+    .pass      { color: var(--green); }
+    .fail      { color: var(--red); }
+    .warn      { color: var(--yellow); }
+    .muted     { color: var(--muted); }
+    .bold      { font-weight: 700; }
+    .mt8       { margin-top: 8px; }
+    .mt16      { margin-top: 16px; }
+    .flex      { display: flex; }
+    .gap8      { gap: 8px; }
+    .gap16     { gap: 16px; }
+    .between   { justify-content: space-between; }
+    .center    { align-items: center; }
 
-    main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; display: grid;
-           grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+    /* ── Login Page ───────────────────────────────────────────────────── */
+    #login-page {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 60% 0%, #1e1b4b 0%, var(--bg) 60%);
+    }
+    .login-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,.5);
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .login-logo .icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+    .login-logo h1 { font-size: 1.4rem; font-weight: 700; }
+    .login-logo p  { color: var(--muted); font-size: .85rem; margin-top: 4px; }
 
-    .card { background: var(--surface); border: 1px solid var(--border);
-            border-radius: 8px; padding: 1.25rem; }
-    .card h2 { font-size: 1rem; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase;
-               letter-spacing: .05em; }
+    .login-box label {
+      display: block; font-size: .8rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px;
+    }
+    .login-box input {
+      width: 100%; padding: 12px 14px; border-radius: var(--radius);
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); font-size: .95rem; outline: none;
+      transition: border-color .2s;
+    }
+    .login-box input:focus { border-color: var(--accent); }
+    .field { margin-bottom: 18px; }
 
-    /* Sections grid */
-    .sections { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; }
-    .section-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-                    padding: 1rem; }
-    .section-card h3 { font-size: .9rem; margin-bottom: .4rem; }
-    .section-card .meta { font-size: .78rem; color: var(--muted); }
+    .btn-primary {
+      width: 100%; padding: 13px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: var(--radius); font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background .2s, transform .1s;
+    }
+    .btn-primary:hover  { background: var(--accent-h); }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-    /* Leaderboard table */
-    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-    th { text-align: left; padding: .5rem; color: var(--muted); border-bottom: 1px solid var(--border); }
-    td { padding: .5rem; border-bottom: 1px solid var(--border); }
-    .rank-1 td:first-child { color: gold; font-weight: 700; }
-    .rank-2 td:first-child { color: silver; font-weight: 700; }
-    .rank-3 td:first-child { color: #cd7f32; font-weight: 700; }
+    .login-msg {
+      margin-top: 14px; text-align: center; font-size: .85rem;
+      min-height: 20px;
+    }
+    .event-chips {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-top: 28px; padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .chip {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 10px; font-size: .75rem; color: var(--muted);
+    }
 
-    /* Runner panel */
-    .run-panel label { display: block; font-size: .85rem; margin-bottom: .25rem; color: var(--muted); }
-    .run-panel select, .run-panel input {
-      width: 100%; padding: .5rem; background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: 4px; margin-bottom: .75rem; font-size: .9rem; }
-    .run-panel button {
-      width: 100%; padding: .6rem; background: var(--accent); color: #000;
-      border: none; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: .9rem; }
-    .run-panel button:disabled { opacity: .5; cursor: not-allowed; }
-    .result-box { margin-top: 1rem; font-size: .85rem; }
-    .pass { color: var(--green); } .fail { color: var(--red); }
+    /* ── App Shell ────────────────────────────────────────────────────── */
+    #app { display: none; flex-direction: column; min-height: 100vh; }
 
-    /* Auth panel */
-    .auth-panel input {
-      width: 100%; padding: .5rem; background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: 4px; margin-bottom: .6rem; font-size: .9rem; }
-    .auth-panel button {
-      width: 100%; padding: .6rem; background: #238636; color: #fff;
-      border: none; border-radius: 4px; font-weight: 700; cursor: pointer; margin-bottom: .4rem; }
-    .auth-panel .msg { font-size: .8rem; color: var(--muted); margin-top: .3rem; }
+    /* topbar */
+    #topbar {
+      height: 56px; background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    #topbar .logo { font-weight: 800; font-size: 1rem; letter-spacing: -.3px; }
+    #topbar .logo span { color: var(--accent); }
+    #topbar nav { display: flex; gap: 4px; margin-left: 16px; }
+    .nav-btn {
+      padding: 6px 14px; border-radius: 8px; border: none;
+      background: transparent; color: var(--muted); font-size: .85rem;
+      cursor: pointer; transition: all .15s; font-weight: 500;
+    }
+    .nav-btn:hover   { background: var(--surface2); color: var(--text); }
+    .nav-btn.active  { background: var(--surface2); color: var(--accent); }
+    .nav-btn.admin-only { color: var(--yellow); }
 
-    @media (max-width: 700px) {
-      main { grid-template-columns: 1fr; }
-      .sections { grid-template-columns: 1fr; }
+    #topbar .user-pill {
+      margin-left: auto; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 14px; font-size: .8rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .logout-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: .75rem; cursor: pointer; padding: 0;
+    }
+    .logout-btn:hover { color: var(--red); }
+
+    /* ── Content area ─────────────────────────────────────────────────── */
+    .content { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .page    { display: none; }
+    .page.active { display: block; }
+
+    /* ── Cards ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+    }
+    .card-title {
+      font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+      color: var(--muted); margin-bottom: 16px; font-weight: 600;
+    }
+
+    /* ── Dashboard ────────────────────────────────────────────────────── */
+    .welcome-banner {
+      background: linear-gradient(135deg, #1e1b4b 0%, #1a2235 100%);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 28px 32px; margin-bottom: 24px;
+    }
+    .welcome-banner h2 { font-size: 1.4rem; font-weight: 700; }
+    .welcome-banner p  { color: var(--muted); margin-top: 6px; font-size: .9rem; }
+    .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px;
+    }
+    .stat-card .val  { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
+    .stat-card .lbl  { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+
+    .sections-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+    .section-card  {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; cursor: pointer;
+      transition: border-color .2s, transform .15s;
+    }
+    .section-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .section-card .sec-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .section-card h3 { font-size: .95rem; font-weight: 700; }
+    .section-card .meta { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+    .sec-badge {
+      font-size: .7rem; padding: 3px 9px; border-radius: 20px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    }
+    .sec-badge.done { background: rgba(16,185,129,.1); border-color: var(--green); color: var(--green); }
+
+    /* ── Test Runner ──────────────────────────────────────────────────── */
+    .runner-layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
+    .section-pick  { display: flex; flex-direction: column; gap: 8px; }
+    .sec-pick-btn  {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px; text-align: left; cursor: pointer;
+      transition: all .15s;
+    }
+    .sec-pick-btn:hover  { border-color: var(--accent); }
+    .sec-pick-btn.active { border-color: var(--accent); background: rgba(99,102,241,.1); }
+    .sec-pick-btn .pts   { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+
+    .run-btn {
+      width: 100%; padding: 13px; margin-top: 14px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: var(--radius); font-size: .95rem; font-weight: 700;
+      cursor: pointer; transition: background .2s;
+    }
+    .run-btn:hover    { background: var(--accent-h); }
+    .run-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .results-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; min-height: 300px;
+    }
+    .score-summary {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
+      margin-bottom: 18px;
+    }
+    .score-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px; text-align: center;
+    }
+    .score-box .big  { font-size: 1.5rem; font-weight: 800; }
+    .score-box .tiny { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+    .test-list { max-height: 340px; overflow-y: auto; }
+    .test-row  {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 0; border-bottom: 1px solid var(--border);
+      font-size: .83rem;
+    }
+    .test-row:last-child { border-bottom: none; }
+    .test-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-pass  { background: var(--green); }
+    .dot-fail  { background: var(--red); }
+    .progress-bar {
+      height: 6px; background: var(--surface2); border-radius: 3px;
+      overflow: hidden; margin: 8px 0;
+    }
+    .progress-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width .4s; }
+
+    /* ── Leaderboard ──────────────────────────────────────────────────── */
+    .lb-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .lb-table th {
+      text-align: left; padding: 10px 12px; color: var(--muted);
+      border-bottom: 1px solid var(--border); font-weight: 600;
+      font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .lb-table td   { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .lb-table tr:last-child td { border-bottom: none; }
+    .lb-table tr:hover td { background: var(--surface2); }
+    .me-row td { background: rgba(99,102,241,.05) !important; }
+    .rank-badge {
+      display: inline-block; width: 26px; height: 26px; line-height: 26px;
+      text-align: center; border-radius: 50%; font-size: .75rem; font-weight: 700;
+    }
+    .r1 { background: rgba(251,191,36,.2); color: #fbbf24; }
+    .r2 { background: rgba(148,163,184,.2); color: #94a3b8; }
+    .r3 { background: rgba(180,83,9,.2);   color: #b45309; }
+    .r-n { background: var(--surface2); color: var(--muted); }
+    .section-pill {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: .72rem; font-weight: 600; margin: 0 1px;
+    }
+    .s1 { background: rgba(99,102,241,.15); color: #818cf8; }
+    .s2 { background: rgba(16,185,129,.15); color: #34d399; }
+    .s3 { background: rgba(245,158,11,.15); color: #fcd34d; }
+    .s4 { background: rgba(239,68,68,.15);  color: #f87171; }
+
+    .refresh-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: .75rem;
+    }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Admin Panel ──────────────────────────────────────────────────── */
+    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group  { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 5px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 12px; background: var(--bg);
+      border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; font-size: .88rem; outline: none; transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent);
+    }
+    .form-group textarea { resize: vertical; min-height: 120px; font-family: monospace; }
+    .btn-sm {
+      padding: 8px 16px; border-radius: 7px; border: none;
+      font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-accent  { background: var(--accent); color: #fff; }
+    .btn-accent:hover { background: var(--accent-h); }
+    .btn-danger  { background: rgba(239,68,68,.1); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
+    .btn-danger:hover { background: rgba(239,68,68,.2); }
+    .admin-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .admin-table th, .admin-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    .admin-table th { color: var(--muted); font-weight: 600; font-size: .73rem; text-transform: uppercase; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .active-badge   { background: rgba(16,185,129,.1); color: var(--green); }
+    .inactive-badge { background: rgba(239,68,68,.1);  color: var(--red); }
+    .result-banner {
+      padding: 12px 16px; border-radius: 8px; font-size: .85rem;
+      margin-top: 12px;
+    }
+    .result-ok  { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
+    .result-err { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+
+    /* ── Responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 800px) {
+      .stats-row   { grid-template-columns: repeat(2,1fr); }
+      .sections-grid { grid-template-columns: 1fr; }
+      .runner-layout { grid-template-columns: 1fr; }
+      .admin-grid  { grid-template-columns: 1fr; }
+      .score-summary { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 500px) {
+      .stats-row  { grid-template-columns: 1fr 1fr; }
+      .login-box  { padding: 32px 22px; }
+      #topbar     { padding: 0 12px; }
+      .content    { padding: 12px; }
     }
   </style>
 </head>
 <body>
-<header>
-  <h1>🔥 Debugging Championship 2026</h1>
-  <span class="badge">LIVE</span>
-  <span style="margin-left:auto;font-size:.85rem;color:var(--muted)" id="user-info">Not logged in</span>
-</header>
 
-<main>
-  <div>
-    <!-- Sections overview -->
-    <div class="card" style="margin-bottom:1.5rem">
-      <h2>Event Sections</h2>
-      <div class="sections" id="sections-grid">Loading...</div>
+<!-- ══════════════════════════════════════════════════════════════════════
+     LOGIN PAGE
+══════════════════════════════════════════════════════════════════════ -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="icon">🔥</span>
+      <h1>Debugging Championship</h1>
+      <p>2026 · Elite Multi-Section Event</p>
     </div>
 
-    <!-- Leaderboard -->
-    <div class="card">
-      <h2>Leaderboard <button onclick="loadLeaderboard()" style="float:right;background:none;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:.75rem">↻ Refresh</button></h2>
-      <table>
-        <thead><tr><th>#</th><th>Participant</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Total</th></tr></thead>
-        <tbody id="lb-body"><tr><td colspan="7" style="color:var(--muted)">Loading...</td></tr></tbody>
-      </table>
+    <div class="field">
+      <label>Username</label>
+      <input id="l-user" type="text" placeholder="your_username" autocomplete="username"
+             onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-msg" id="login-msg"></div>
+
+    <div class="event-chips">
+      <span class="chip">⏱ 170 min total</span>
+      <span class="chip">🏆 420 pts</span>
+      <span class="chip">4 Sections</span>
+      <span class="chip">Level 3</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <div class="logo">DEBUG<span>CHAMP</span></div>
+    <nav>
+      <button class="nav-btn active" onclick="showPage('dashboard',this)">Dashboard</button>
+      <button class="nav-btn"       onclick="showPage('runner',this)">Run Tests</button>
+      <button class="nav-btn"       onclick="showPage('leaderboard',this);loadLeaderboard()">Leaderboard</button>
+      <button class="nav-btn admin-only hidden" id="admin-nav"
+              onclick="showPage('admin',this);loadStudents()">⚡ Admin</button>
+    </nav>
+    <div class="user-pill">
+      <span id="topbar-name">—</span>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
     </div>
   </div>
 
-  <div>
-    <!-- Auth -->
-    <div class="card auth-panel" style="margin-bottom:1.5rem">
-      <h2>Participant Login</h2>
-      <input id="reg-username" placeholder="Username" />
-      <input id="reg-github" placeholder="GitHub handle (optional)" />
-      <button onclick="register()">Register &amp; Get Token</button>
-      <div class="msg" id="auth-msg"></div>
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ── Dashboard ──────────────────────────────────────────────────── -->
+    <div class="page active" id="page-dashboard">
+      <div class="welcome-banner">
+        <h2>Welcome, <span id="wb-name">—</span> 👋</h2>
+        <p id="wb-meta">—</p>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="val" id="st-total">0</div><div class="lbl">Total Score</div></div>
+        <div class="stat-card"><div class="val" id="st-rank">—</div><div class="lbl">Rank</div></div>
+        <div class="stat-card"><div class="val" id="st-done">0/4</div><div class="lbl">Sections Attempted</div></div>
+        <div class="stat-card"><div class="val" id="st-max">420</div><div class="lbl">Max Points</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Sections</div>
+        <div class="sections-grid" id="sections-grid"></div>
+      </div>
     </div>
 
-    <!-- Test Runner -->
-    <div class="card run-panel">
-      <h2>Run Tests</h2>
-      <label>Section</label>
-      <select id="run-section">
-        <option value="1">Section 1 — Multi-File (100 pts)</option>
-        <option value="2">Section 2 — Recovery (100 pts)</option>
-        <option value="3">Section 3 — Memory &amp; Deadlock (100 pts)</option>
-        <option value="4">Section 4 — Logical Tracing (120 pts)</option>
-      </select>
-      <button id="run-btn" onclick="runTests()" disabled>Login first</button>
-      <div class="result-box" id="run-result"></div>
+    <!-- ── Test Runner ─────────────────────────────────────────────────── -->
+    <div class="page" id="page-runner">
+      <h2 style="margin-bottom:18px;font-size:1.1rem">▶ Test Runner</h2>
+      <div class="runner-layout">
+        <div>
+          <div class="card-title">Select Section</div>
+          <div class="section-pick" id="sec-pick"></div>
+          <button class="run-btn" id="run-btn" onclick="runTests()">▶ Run Tests</button>
+        </div>
+        <div class="results-panel" id="results-panel">
+          <div style="color:var(--muted);text-align:center;padding-top:60px">
+            Select a section and click Run Tests
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-</main>
+
+    <!-- ── Leaderboard ─────────────────────────────────────────────────── -->
+    <div class="page" id="page-leaderboard">
+      <div class="flex between center" style="margin-bottom:18px">
+        <h2 style="font-size:1.1rem">🏆 Leaderboard</h2>
+        <button class="refresh-btn" onclick="loadLeaderboard()">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <table class="lb-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Participant</th><th>College / Team</th>
+              <th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="lb-body"><tr><td colspan="8" class="muted" style="padding:20px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Admin Panel ─────────────────────────────────────────────────── -->
+    <div class="page" id="page-admin">
+      <h2 style="margin-bottom:18px;font-size:1.1rem">⚡ Admin Panel</h2>
+      <div class="admin-grid">
+
+        <!-- Create single student -->
+        <div class="card">
+          <div class="card-title">Create Student</div>
+          <div class="form-group"><label>Username</label><input id="a-user" placeholder="student_username"/></div>
+          <div class="form-group"><label>Password</label><input id="a-pass" placeholder="TempPass@123"/></div>
+          <div class="form-group"><label>Full Name</label><input id="a-name" placeholder="Jane Doe"/></div>
+          <div class="form-group"><label>Email</label><input id="a-email" placeholder="jane@college.edu"/></div>
+          <div class="form-group"><label>College</label><input id="a-college" placeholder="College name"/></div>
+          <div class="form-group"><label>Team</label><input id="a-team" placeholder="Team Alpha"/></div>
+          <button class="btn-sm btn-accent" onclick="createStudent()">Create Student</button>
+          <div id="create-msg"></div>
+        </div>
+
+        <!-- Bulk import from Google Form JSON -->
+        <div class="card">
+          <div class="card-title">Bulk Import (Google Form)</div>
+          <p class="muted" style="font-size:.8rem;margin-bottom:12px">
+            Paste JSON array exported from Google Sheets.<br>
+            Required fields: <strong>username, password</strong><br>
+            Optional: full_name, email, college, team
+          </p>
+          <div class="form-group">
+            <label>JSON Array</label>
+            <textarea id="bulk-json" placeholder='[{"username":"alice","password":"Pass@1","full_name":"Alice K","email":"alice@uni.edu","college":"MIT","team":"Alpha"},...]'></textarea>
+          </div>
+          <button class="btn-sm btn-accent" onclick="bulkImport()">Import Students</button>
+          <div id="bulk-msg"></div>
+          <hr style="margin:16px 0;border-color:var(--border)"/>
+          <div class="card-title">Upload CSV from Google Sheets</div>
+          <p class="muted" style="font-size:.78rem;margin-bottom:10px">
+            Google Forms → Responses Sheet → File → Download .csv<br>
+            Columns needed: username, password (rest optional)
+          </p>
+          <div class="form-group">
+            <label>CSV File</label>
+            <input type="file" id="csv-file" accept=".csv"/>
+          </div>
+          <button class="btn-sm btn-accent" onclick="uploadCSV()">Upload CSV</button>
+          <div id="csv-msg"></div>
+        </div>
+      </div>
+
+      <!-- Students table -->
+      <div class="card" style="margin-top:16px">
+        <div class="flex between center" style="margin-bottom:14px">
+          <div class="card-title" style="margin-bottom:0">Registered Students</div>
+          <div class="flex gap8">
+            <button class="btn-sm btn-danger" onclick="resetLeaderboard()">Reset Scores</button>
+            <button class="refresh-btn" onclick="loadStudents()">↻ Refresh</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr><th>#</th><th>Username</th><th>Full Name</th><th>Email</th>
+                  <th>College</th><th>Team</th><th>Status</th><th>Last Login</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="students-body"><tr><td colspan="9" class="muted" style="padding:16px">Load…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
 
 <script>
-  let TOKEN = localStorage.getItem("dc_token") || "";
-  let USERNAME = localStorage.getItem("dc_user") || "";
+// ── State ──────────────────────────────────────────────────────────────────
+let TOKEN    = localStorage.getItem("dc_token") || "";
+let USER     = JSON.parse(localStorage.getItem("dc_user") || "{}");
+let SEL_SEC  = 1;
+const SECTIONS = [
+  {id:1, title:"Multi-File Debugging", duration:45, points:100, diff:"⭐⭐⭐"},
+  {id:2, title:"Broken Project Recovery", duration:40, points:100, diff:"⭐⭐⭐⭐"},
+  {id:3, title:"Memory & Deadlock", duration:50, points:100, diff:"⭐⭐⭐⭐⭐"},
+  {id:4, title:"Logical Tracing", duration:35, points:120, diff:"⭐⭐⭐⭐"},
+];
 
-  function updateUserInfo() {
-    document.getElementById("user-info").textContent =
-      USERNAME ? `👤 ${USERNAME}` : "Not logged in";
-    const btn = document.getElementById("run-btn");
-    btn.disabled = !TOKEN;
-    btn.textContent = TOKEN ? "▶ Run Tests" : "Login first";
-  }
+// ── Boot ───────────────────────────────────────────────────────────────────
+window.onload = () => {
+  if (TOKEN && USER.username) { showApp(); }
+  else { document.getElementById("login-page").style.display = "flex"; }
+};
 
-  async function register() {
-    const u = document.getElementById("reg-username").value.trim();
-    const g = document.getElementById("reg-github").value.trim();
-    if (!u) { document.getElementById("auth-msg").textContent = "Enter a username."; return; }
-    const res = await fetch("/api/auth/register", {
-      method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({username: u, github: g}),
-    });
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const u = document.getElementById("l-user").value.trim();
+  const p = document.getElementById("l-pass").value;
+  const msg = document.getElementById("login-msg");
+  const btn = document.getElementById("login-btn");
+  if (!u || !p) { setMsg(msg,"Enter username and password","red"); return; }
+  btn.disabled = true; btn.textContent = "Signing in…";
+  try {
+    const res  = await api("/api/auth/login", "POST", {username:u, password:p}, false);
     const data = await res.json();
-    if (res.ok) {
-      TOKEN = data.access_token; USERNAME = data.username;
-      localStorage.setItem("dc_token", TOKEN);
-      localStorage.setItem("dc_user", USERNAME);
-      document.getElementById("auth-msg").style.color = "var(--green)";
-      document.getElementById("auth-msg").textContent = `✅ Registered as ${USERNAME}`;
-      updateUserInfo();
-    } else {
-      document.getElementById("auth-msg").style.color = "var(--red)";
-      document.getElementById("auth-msg").textContent = `❌ ${data.detail}`;
-    }
-  }
-
-  async function runTests() {
-    const section = parseInt(document.getElementById("run-section").value);
-    const box = document.getElementById("run-result");
-    const btn = document.getElementById("run-btn");
-    btn.disabled = true; btn.textContent = "Running…";
-    box.innerHTML = "<span style='color:var(--muted)'>Running pytest…</span>";
+    if (!res.ok) { setMsg(msg, data.detail || "Login failed", "red"); return; }
+    TOKEN = data.access_token;
+    USER  = {username:data.username, full_name:data.full_name,
+             college:data.college, team:data.team, is_admin:false};
+    // Decode is_admin from token payload
     try {
-      const res = await fetch("/api/run/section", {
-        method: "POST",
-        headers: {"Content-Type":"application/json", "Authorization": `Bearer ${TOKEN}`},
-        body: JSON.stringify({section}),
-      });
-      const data = await res.json();
-      if (!res.ok) { box.innerHTML = `<span class="fail">Error: ${data.detail}</span>`; return; }
+      const pl = JSON.parse(atob(TOKEN.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+      USER.is_admin = !!pl.is_admin;
+    } catch {}
+    localStorage.setItem("dc_token", TOKEN);
+    localStorage.setItem("dc_user", JSON.stringify(USER));
+    document.getElementById("login-page").style.display = "none";
+    showApp();
+  } catch(e) { setMsg(msg, "Network error", "red"); }
+  finally    { btn.disabled = false; btn.textContent = "Sign In"; }
+}
 
-      const pct = data.total ? Math.round(data.passed / data.total * 100) : 0;
-      box.innerHTML = `
-        <div><strong>Section ${data.section}</strong> — ${data.duration_seconds}s</div>
-        <div class="pass">✅ Passed: ${data.passed}/${data.total} (${pct}%)</div>
-        <div class="fail">❌ Failed: ${data.failed}</div>
-        <div style="margin:.4rem 0"><strong>Score: ${data.score} / ${data.max_score} pts</strong></div>
-        <div style="margin-top:.5rem;max-height:180px;overflow:auto">
-          ${data.results.map(t =>
-            `<div style="margin:.15rem 0">
-              <span class="${t.outcome==='passed'?'pass':'fail'}">${t.outcome==='passed'?'✅':'❌'}</span>
-              ${t.name}
-            </div>`).join("")}
-        </div>`;
+function doLogout() {
+  TOKEN = ""; USER = {};
+  localStorage.removeItem("dc_token");
+  localStorage.removeItem("dc_user");
+  document.getElementById("app").style.display   = "none";
+  document.getElementById("login-page").style.display = "flex";
+  document.getElementById("l-pass").value = "";
+  document.getElementById("login-msg").textContent = "";
+}
 
-      // Auto-submit score
-      await fetch("/api/leaderboard/submit", {
-        method: "POST",
-        headers: {"Content-Type":"application/json", "Authorization": `Bearer ${TOKEN}`},
-        body: JSON.stringify({
-          section: data.section, score: data.score,
-          passed_tests: data.passed, total_tests: data.total,
-          time_taken: data.duration_seconds,
-        }),
-      });
-      loadLeaderboard();
-    } finally {
-      btn.disabled = false; btn.textContent = "▶ Run Tests";
-    }
-  }
+// ── App init ───────────────────────────────────────────────────────────────
+function showApp() {
+  document.getElementById("app").style.display = "flex";
+  document.getElementById("topbar-name").textContent =
+    USER.full_name || USER.username;
+  if (USER.is_admin)
+    document.getElementById("admin-nav").classList.remove("hidden");
+  buildDashboard();
+  buildRunnerPicker();
+  loadDashboardScores();
+}
 
-  async function loadLeaderboard() {
-    const res = await fetch("/api/leaderboard/");
+// ── Navigation ─────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("page-"+name).classList.add("active");
+  if (btn) btn.classList.add("active");
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function buildDashboard() {
+  document.getElementById("wb-name").textContent = USER.full_name || USER.username;
+  document.getElementById("wb-meta").textContent =
+    [USER.college, USER.team].filter(Boolean).join(" · ") || "Participant";
+
+  const grid = document.getElementById("sections-grid");
+  grid.innerHTML = SECTIONS.map(s => `
+    <div class="section-card" onclick="gotoRunner(${s.id})">
+      <div class="sec-header">
+        <h3>Section ${s.id}: ${s.title}</h3>
+        <span class="sec-badge" id="sd-badge-${s.id}">—</span>
+      </div>
+      <div class="meta">${s.diff} &nbsp;|&nbsp; ⏱ ${s.duration} min &nbsp;|&nbsp; 🏆 ${s.points} pts</div>
+    </div>`).join("");
+}
+
+async function loadDashboardScores() {
+  try {
+    const res  = await api("/api/leaderboard/");
     const data = await res.json();
-    const tbody = document.getElementById("lb-body");
+    const me   = (data.leaderboard||[]).find(r=>r.username===USER.username);
+    if (!me) return;
+    document.getElementById("st-total").textContent = me.total_score;
+    const rank = (data.leaderboard||[]).findIndex(r=>r.username===USER.username)+1;
+    document.getElementById("st-rank").textContent  = rank ? `#${rank}` : "—";
+    let done = 0;
+    [1,2,3,4].forEach(i=>{
+      const sc = me[`section${i}`] || 0;
+      if (sc > 0) { done++;
+        const b = document.getElementById(`sd-badge-${i}`);
+        if (b) { b.textContent = `${sc} pts`; b.classList.add("done"); }
+      }
+    });
+    document.getElementById("st-done").textContent = `${done}/4`;
+  } catch {}
+}
+
+function gotoRunner(secId) {
+  SEL_SEC = secId;
+  showPage("runner", document.querySelectorAll(".nav-btn")[1]);
+  document.querySelectorAll(".sec-pick-btn").forEach((b,i)=>{
+    b.classList.toggle("active", i+1===secId);
+  });
+}
+
+// ── Test Runner ────────────────────────────────────────────────────────────
+function buildRunnerPicker() {
+  document.getElementById("sec-pick").innerHTML = SECTIONS.map(s => `
+    <button class="sec-pick-btn ${s.id===1?'active':''}"
+            onclick="selSection(${s.id},this)">
+      <strong>Section ${s.id}: ${s.title}</strong>
+      <div class="pts">⏱ ${s.duration} min · 🏆 ${s.points} pts</div>
+    </button>`).join("");
+}
+
+function selSection(id, el) {
+  SEL_SEC = id;
+  document.querySelectorAll(".sec-pick-btn").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+}
+
+async function runTests() {
+  const btn = document.getElementById("run-btn");
+  const panel = document.getElementById("results-panel");
+  btn.disabled = true; btn.textContent = "Running…";
+  panel.innerHTML = `<div style="color:var(--muted);text-align:center;padding-top:60px">
+    ⏳ Running pytest for Section ${SEL_SEC}…</div>`;
+  try {
+    const res  = await api("/api/run/section","POST",{section:SEL_SEC});
+    const data = await res.json();
+    if (!res.ok) { panel.innerHTML=`<div class="fail">${data.detail}</div>`; return; }
+
+    const pct = data.total ? Math.round(data.passed/data.total*100) : 0;
+    panel.innerHTML = `
+      <div class="score-summary">
+        <div class="score-box">
+          <div class="big" style="color:var(--accent)">${data.score}</div>
+          <div class="tiny">Score / ${data.max_score}</div>
+        </div>
+        <div class="score-box">
+          <div class="big pass">${data.passed}</div>
+          <div class="tiny">Passed / ${data.total}</div>
+        </div>
+        <div class="score-box">
+          <div class="big">${data.duration_seconds}s</div>
+          <div class="tiny">Duration</div>
+        </div>
+      </div>
+      <div class="flex between center mt8" style="margin-bottom:6px">
+        <span style="font-size:.8rem;color:var(--muted)">${pct}% pass rate</span>
+        <span class="${pct===100?'pass':'warn'}" style="font-size:.8rem">${pct===100?'✅ All Passed':'⚠ Some Failed'}</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="test-list mt16">
+        ${data.results.map(t=>`
+          <div class="test-row">
+            <span class="test-dot ${t.outcome==='passed'?'dot-pass':'dot-fail'}"></span>
+            <span style="flex:1">${t.name}</span>
+            <span class="muted" style="font-size:.75rem">${t.duration}s</span>
+          </div>`).join("")}
+      </div>`;
+
+    // Auto-submit score
+    await api("/api/leaderboard/submit","POST",{
+      section:data.section, score:data.score,
+      passed_tests:data.passed, total_tests:data.total, time_taken:data.duration_seconds
+    });
+    loadDashboardScores();
+  } catch(e) { panel.innerHTML=`<div class="fail">Error: ${e.message}</div>`; }
+  finally    { btn.disabled=false; btn.textContent="▶ Run Tests"; }
+}
+
+// ── Leaderboard ────────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  const tbody = document.getElementById("lb-body");
+  tbody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:20px">Loading…</td></tr>`;
+  try {
+    const res  = await api("/api/leaderboard/");
+    const data = await res.json();
     if (!data.leaderboard.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">No submissions yet</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:20px">No submissions yet</td></tr>`;
       return;
     }
-    tbody.innerHTML = data.leaderboard.map((r, i) =>
-      `<tr class="rank-${r.rank}">
-         <td>${r.rank}</td>
-         <td>${r.username}</td>
-         <td>${r.section1 || 0}</td>
-         <td>${r.section2 || 0}</td>
-         <td>${r.section3 || 0}</td>
-         <td>${r.section4 || 0}</td>
-         <td><strong>${r.total_score}</strong></td>
-       </tr>`
-    ).join("");
-  }
+    tbody.innerHTML = data.leaderboard.map((r,i)=>{
+      const rank = i+1;
+      const rc   = rank===1?'r1':rank===2?'r2':rank===3?'r3':'r-n';
+      const isMe = r.username === USER.username;
+      return `<tr class="${isMe?'me-row':''}">
+        <td><span class="rank-badge ${rc}">${rank}</span></td>
+        <td><strong>${r.full_name||r.username}</strong>${isMe?` <span style="color:var(--accent);font-size:.72rem">(you)</span>`:''}</td>
+        <td><span class="muted">${[r.college,r.team].filter(Boolean).join(" / ")||"—"}</span></td>
+        <td><span class="section-pill s1">${r.section1||0}</span></td>
+        <td><span class="section-pill s2">${r.section2||0}</span></td>
+        <td><span class="section-pill s3">${r.section3||0}</span></td>
+        <td><span class="section-pill s4">${r.section4||0}</span></td>
+        <td><strong>${r.total_score}</strong></td>
+      </tr>`;
+    }).join("");
+  } catch { tbody.innerHTML=`<tr><td colspan="8" class="fail">Failed to load</td></tr>`; }
+}
 
-  async function loadSections() {
-    const res = await fetch("/api/info");
-    const data = await res.json();
-    document.getElementById("sections-grid").innerHTML =
-      data.sections.map(s =>
-        `<div class="section-card">
-           <h3>Section ${s.id}: ${s.title}</h3>
-           <div class="meta">${s.difficulty} &nbsp;|&nbsp; ⏱ ${s.duration} min &nbsp;|&nbsp; 🏆 ${s.points} pts</div>
-         </div>`
-      ).join("");
-  }
+// ── Admin ──────────────────────────────────────────────────────────────────
+async function createStudent() {
+  const body = {
+    username: v("a-user"), password: v("a-pass"),
+    full_name:v("a-name"), email:v("a-email"),
+    college:v("a-college"), team:v("a-team"),
+  };
+  if (!body.username||!body.password) { showAdminMsg("create-msg","Username & password required","err"); return; }
+  const res  = await api("/api/admin/students","POST",body);
+  const data = await res.json();
+  if (res.ok) { showAdminMsg("create-msg",`✅ Created: ${body.username}`,"ok"); loadStudents(); }
+  else        { showAdminMsg("create-msg",`❌ ${data.detail}`,"err"); }
+}
 
-  updateUserInfo();
-  loadSections();
-  loadLeaderboard();
-  setInterval(loadLeaderboard, 30000);  // auto-refresh every 30 s
+async function bulkImport() {
+  let rows;
+  try { rows = JSON.parse(document.getElementById("bulk-json").value); }
+  catch { showAdminMsg("bulk-msg","❌ Invalid JSON","err"); return; }
+  const res  = await api("/api/admin/students/import","POST",{students:rows});
+  const data = await res.json();
+  if (res.ok) {
+    showAdminMsg("bulk-msg",`✅ Created ${data.created}, skipped ${data.skipped}`,"ok");
+    loadStudents();
+  } else { showAdminMsg("bulk-msg",`❌ ${data.detail}`,"err"); }
+}
+
+async function uploadCSV() {
+  const file = document.getElementById("csv-file").files[0];
+  if (!file) { showAdminMsg("csv-msg","Select a CSV file","err"); return; }
+  const form = new FormData(); form.append("file", file);
+  const res  = await fetch("/api/admin/students/import-csv",{
+    method:"POST", headers:{"Authorization":`Bearer ${TOKEN}`}, body:form
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showAdminMsg("csv-msg",`✅ ${data.created} created, ${data.skipped} skipped from ${data.total_rows} rows`,"ok");
+    loadStudents();
+  } else { showAdminMsg("csv-msg",`❌ ${data.detail}`,"err"); }
+}
+
+async function loadStudents() {
+  const tbody = document.getElementById("students-body");
+  tbody.innerHTML = `<tr><td colspan="9" class="muted">Loading…</td></tr>`;
+  const res  = await api("/api/admin/students");
+  const data = await res.json();
+  if (!res.ok || !data.students.length) {
+    tbody.innerHTML=`<tr><td colspan="9" class="muted" style="padding:16px">No students registered yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.students.map((s,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${s.username}</strong></td>
+      <td>${s.full_name||"—"}</td>
+      <td>${s.email||"—"}</td>
+      <td>${s.college||"—"}</td>
+      <td>${s.team||"—"}</td>
+      <td><span class="status-badge ${s.is_active?'active-badge':'inactive-badge'}">${s.is_active?"Active":"Inactive"}</span></td>
+      <td class="muted">${s.last_login?s.last_login.replace("T"," ").slice(0,16):"Never"}</td>
+      <td>
+        <button class="btn-sm btn-danger" style="padding:4px 8px;font-size:.72rem"
+                onclick="deactivateStudent('${s.username}')">Deactivate</button>
+      </td>
+    </tr>`).join("");
+}
+
+async function deactivateStudent(u) {
+  if (!confirm(`Deactivate ${u}?`)) return;
+  await api(`/api/admin/students/${u}`,"DELETE");
+  loadStudents();
+}
+
+async function resetLeaderboard() {
+  if (!confirm("Reset ALL scores? This cannot be undone.")) return;
+  const res  = await api("/api/admin/leaderboard","DELETE");
+  const data = await res.json();
+  alert(data.message || "Done");
+  loadStudents();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+async function api(url, method="GET", body=null, auth=true) {
+  const opts = { method, headers: {"Content-Type":"application/json"} };
+  if (auth && TOKEN) opts.headers["Authorization"] = `Bearer ${TOKEN}`;
+  if (body)          opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (res.status === 401) { doLogout(); }
+  return res;
+}
+function v(id) { return document.getElementById(id).value.trim(); }
+function setMsg(el, txt, color) {
+  el.textContent = txt;
+  el.style.color = color==="red"?"var(--red)":"var(--green)";
+}
+function showAdminMsg(id, txt, type) {
+  const el = document.getElementById(id);
+  el.className = `result-banner ${type==="ok"?"result-ok":"result-err"}`;
+  el.textContent = txt;
+  setTimeout(()=>{ el.textContent=""; el.className=""; }, 5000);
+}
+
+// Auto-refresh leaderboard every 30s when on that page
+setInterval(()=>{
+  if (document.getElementById("page-leaderboard").classList.contains("active"))
+    loadLeaderboard();
+}, 30000);
 </script>
 </body>
 </html>

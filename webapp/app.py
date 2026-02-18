@@ -8,7 +8,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from webapp.routers import auth, leaderboard, runner, info
+from webapp.routers import auth, leaderboard, runner, info, admin
 from webapp.core.config import settings
 
 
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(leaderboard.router, prefix="/api/leaderboard", tags=["Leaderboard"])
     app.include_router(runner.router,      prefix="/api/run",         tags=["Test Runner"])
     app.include_router(info.router,        prefix="/api",             tags=["Info"])
+    app.include_router(admin.router,       prefix="/api/admin",       tags=["Admin"])
 
     # ── Static files (frontend) ───────────────────────────────────────────────
     static_dir = os.path.join(os.path.dirname(__file__), "static")

@@ -1,5 +1,5 @@
 """
-JWT-based auth helpers.
+Security helpers — password hashing and JWT-like tokens.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -8,9 +8,31 @@ import json
 import hashlib
 import hmac
 import base64
+import os
 
 from webapp.core.config import settings
 
+
+# ── Password hashing (PBKDF2-SHA256, no external deps) ───────────────────────
+
+def hash_password(password: str) -> str:
+    """Hash a password with a random salt using PBKDF2-SHA256."""
+    salt = os.urandom(16).hex()
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260_000)
+    return f"pbkdf2:sha256:{salt}:{h.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify a plaintext password against a stored hash."""
+    try:
+        _, algo, salt, expected = stored_hash.split(":", 3)
+        h = hashlib.pbkdf2_hmac(algo, password.encode(), salt.encode(), 260_000)
+        return hmac.compare_digest(h.hex(), expected)
+    except Exception:
+        return False
+
+
+# ── JWT-like tokens (HS256, no PyJWT needed) ─────────────────────────────────
 
 def _b64(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
@@ -23,7 +45,7 @@ def _sign(message: str) -> str:
 
 
 def create_access_token(data: dict, expires_minutes: Optional[int] = None) -> str:
-    """Create a simple signed JWT-like token (HS256)."""
+    """Create a signed JWT-like token (HS256)."""
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=expires_minutes or settings.API_TOKEN_EXPIRE_MINUTES
     )
@@ -35,7 +57,7 @@ def create_access_token(data: dict, expires_minutes: Optional[int] = None) -> st
 
 
 def verify_token(token: str) -> Optional[dict]:
-    """Verify token and return payload, or None if invalid/expired."""
+    """Verify token signature and expiry. Returns payload or None."""
     try:
         parts = token.split(".")
         if len(parts) != 3:

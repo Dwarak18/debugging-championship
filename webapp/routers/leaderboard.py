@@ -1,5 +1,5 @@
 """
-Leaderboard router — view rankings, submit scores, admin reset.
+Leaderboard router — view rankings, submit scores.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from webapp.core.database import get_leaderboard, upsert_score, get_submissions
-from webapp.core.deps import get_current_user, require_admin
+from webapp.core.deps import get_current_user
 
 router = APIRouter()
 
@@ -56,14 +56,3 @@ def submit_score(body: ScoreSubmission, user: dict = Depends(get_current_user)):
 def my_scores(user: dict = Depends(get_current_user)):
     """Return all submissions for the current user."""
     return {"username": user["sub"], "submissions": get_submissions(user["sub"])}
-
-
-@router.delete("/reset", dependencies=[Depends(require_admin)])
-def reset_leaderboard():
-    """Admin: wipe all leaderboard scores (keeps participants)."""
-    import sqlite3
-    from webapp.core.config import settings
-    with sqlite3.connect(settings.DB_PATH) as conn:
-        conn.execute("DELETE FROM submissions")
-        conn.execute("UPDATE leaderboard SET total_score=0, section1=0, section2=0, section3=0, section4=0")
-    return {"message": "Leaderboard reset"}
