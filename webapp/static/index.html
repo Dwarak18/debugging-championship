@@ -532,16 +532,18 @@ async function doLogin() {
     TOKEN = data.access_token;
     USER  = {username:data.username, full_name:data.full_name,
              college:data.college, team:data.team, is_admin:false};
-    // Decode is_admin from token payload
+    // Decode is_admin from token payload (URL-safe base64)
     try {
-      const pl = JSON.parse(atob(TOKEN.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+      let b64 = TOKEN.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+      while (b64.length % 4) b64 += "=";
+      const pl = JSON.parse(atob(b64));
       USER.is_admin = !!pl.is_admin;
     } catch {}
     localStorage.setItem("dc_token", TOKEN);
     localStorage.setItem("dc_user", JSON.stringify(USER));
     document.getElementById("login-page").style.display = "none";
     showApp();
-  } catch(e) { setMsg(msg, "Network error", "red"); }
+  } catch(e) { setMsg(msg, "Network error: " + e.message, "red"); }
   finally    { btn.disabled = false; btn.textContent = "Sign In"; }
 }
 

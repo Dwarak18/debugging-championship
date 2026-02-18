@@ -51,7 +51,7 @@ def create_access_token(data: dict, expires_minutes: Optional[int] = None) -> st
     )
     payload = {**data, "exp": expire.timestamp()}
     header  = _b64(b'{"alg":"HS256","typ":"JWT"}')
-    body    = _b64(json.dumps(payload).encode())
+    body    = _b64(json.dumps(payload, separators=(",", ":")).encode())
     sig     = _sign(f"{header}.{body}")
     return f"{header}.{body}.{sig}"
 
