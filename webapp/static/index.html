@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Debugging Championship 2026</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #30363d;
+      --accent: #f78166; --green: #3fb950; --red: #f85149;
+      --text: #e6edf3; --muted: #8b949e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    header { background: var(--surface); border-bottom: 1px solid var(--border);
+             padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { font-size: 1.3rem; }
+    .badge { background: var(--accent); color: #000; border-radius: 4px;
+             padding: 2px 8px; font-size: .75rem; font-weight: 700; }
+
+    main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; display: grid;
+           grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+
+    .card { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 1.25rem; }
+    .card h2 { font-size: 1rem; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase;
+               letter-spacing: .05em; }
+
+    /* Sections grid */
+    .sections { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; }
+    .section-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+                    padding: 1rem; }
+    .section-card h3 { font-size: .9rem; margin-bottom: .4rem; }
+    .section-card .meta { font-size: .78rem; color: var(--muted); }
+
+    /* Leaderboard table */
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th { text-align: left; padding: .5rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: .5rem; border-bottom: 1px solid var(--border); }
+    .rank-1 td:first-child { color: gold; font-weight: 700; }
+    .rank-2 td:first-child { color: silver; font-weight: 700; }
+    .rank-3 td:first-child { color: #cd7f32; font-weight: 700; }
+
+    /* Runner panel */
+    .run-panel label { display: block; font-size: .85rem; margin-bottom: .25rem; color: var(--muted); }
+    .run-panel select, .run-panel input {
+      width: 100%; padding: .5rem; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 4px; margin-bottom: .75rem; font-size: .9rem; }
+    .run-panel button {
+      width: 100%; padding: .6rem; background: var(--accent); color: #000;
+      border: none; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: .9rem; }
+    .run-panel button:disabled { opacity: .5; cursor: not-allowed; }
+    .result-box { margin-top: 1rem; font-size: .85rem; }
+    .pass { color: var(--green); } .fail { color: var(--red); }
+
+    /* Auth panel */
+    .auth-panel input {
+      width: 100%; padding: .5rem; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 4px; margin-bottom: .6rem; font-size: .9rem; }
+    .auth-panel button {
+      width: 100%; padding: .6rem; background: #238636; color: #fff;
+      border: none; border-radius: 4px; font-weight: 700; cursor: pointer; margin-bottom: .4rem; }
+    .auth-panel .msg { font-size: .8rem; color: var(--muted); margin-top: .3rem; }
+
+    @media (max-width: 700px) {
+      main { grid-template-columns: 1fr; }
+      .sections { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🔥 Debugging Championship 2026</h1>
+  <span class="badge">LIVE</span>
+  <span style="margin-left:auto;font-size:.85rem;color:var(--muted)" id="user-info">Not logged in</span>
+</header>
+
+<main>
+  <div>
+    <!-- Sections overview -->
+    <div class="card" style="margin-bottom:1.5rem">
+      <h2>Event Sections</h2>
+      <div class="sections" id="sections-grid">Loading...</div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="card">
+      <h2>Leaderboard <button onclick="loadLeaderboard()" style="float:right;background:none;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:.75rem">↻ Refresh</button></h2>
+      <table>
+        <thead><tr><th>#</th><th>Participant</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Total</th></tr></thead>
+        <tbody id="lb-body"><tr><td colspan="7" style="color:var(--muted)">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div>
+    <!-- Auth -->
+    <div class="card auth-panel" style="margin-bottom:1.5rem">
+      <h2>Participant Login</h2>
+      <input id="reg-username" placeholder="Username" />
+      <input id="reg-github" placeholder="GitHub handle (optional)" />
+      <button onclick="register()">Register &amp; Get Token</button>
+      <div class="msg" id="auth-msg"></div>
+    </div>
+
+    <!-- Test Runner -->
+    <div class="card run-panel">
+      <h2>Run Tests</h2>
+      <label>Section</label>
+      <select id="run-section">
+        <option value="1">Section 1 — Multi-File (100 pts)</option>
+        <option value="2">Section 2 — Recovery (100 pts)</option>
+        <option value="3">Section 3 — Memory &amp; Deadlock (100 pts)</option>
+        <option value="4">Section 4 — Logical Tracing (120 pts)</option>
+      </select>
+      <button id="run-btn" onclick="runTests()" disabled>Login first</button>
+      <div class="result-box" id="run-result"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  let TOKEN = localStorage.getItem("dc_token") || "";
+  let USERNAME = localStorage.getItem("dc_user") || "";
+
+  function updateUserInfo() {
+    document.getElementById("user-info").textContent =
+      USERNAME ? `👤 ${USERNAME}` : "Not logged in";
+    const btn = document.getElementById("run-btn");
+    btn.disabled = !TOKEN;
+    btn.textContent = TOKEN ? "▶ Run Tests" : "Login first";
+  }
+
+  async function register() {
+    const u = document.getElementById("reg-username").value.trim();
+    const g = document.getElementById("reg-github").value.trim();
+    if (!u) { document.getElementById("auth-msg").textContent = "Enter a username."; return; }
+    const res = await fetch("/api/auth/register", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({username: u, github: g}),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      TOKEN = data.access_token; USERNAME = data.username;
+      localStorage.setItem("dc_token", TOKEN);
+      localStorage.setItem("dc_user", USERNAME);
+      document.getElementById("auth-msg").style.color = "var(--green)";
+      document.getElementById("auth-msg").textContent = `✅ Registered as ${USERNAME}`;
+      updateUserInfo();
+    } else {
+      document.getElementById("auth-msg").style.color = "var(--red)";
+      document.getElementById("auth-msg").textContent = `❌ ${data.detail}`;
+    }
+  }
+
+  async function runTests() {
+    const section = parseInt(document.getElementById("run-section").value);
+    const box = document.getElementById("run-result");
+    const btn = document.getElementById("run-btn");
+    btn.disabled = true; btn.textContent = "Running…";
+    box.innerHTML = "<span style='color:var(--muted)'>Running pytest…</span>";
+    try {
+      const res = await fetch("/api/run/section", {
+        method: "POST",
+        headers: {"Content-Type":"application/json", "Authorization": `Bearer ${TOKEN}`},
+        body: JSON.stringify({section}),
+      });
+      const data = await res.json();
+      if (!res.ok) { box.innerHTML = `<span class="fail">Error: ${data.detail}</span>`; return; }
+
+      const pct = data.total ? Math.round(data.passed / data.total * 100) : 0;
+      box.innerHTML = `
+        <div><strong>Section ${data.section}</strong> — ${data.duration_seconds}s</div>
+        <div class="pass">✅ Passed: ${data.passed}/${data.total} (${pct}%)</div>
+        <div class="fail">❌ Failed: ${data.failed}</div>
+        <div style="margin:.4rem 0"><strong>Score: ${data.score} / ${data.max_score} pts</strong></div>
+        <div style="margin-top:.5rem;max-height:180px;overflow:auto">
+          ${data.results.map(t =>
+            `<div style="margin:.15rem 0">
+              <span class="${t.outcome==='passed'?'pass':'fail'}">${t.outcome==='passed'?'✅':'❌'}</span>
+              ${t.name}
+            </div>`).join("")}
+        </div>`;
+
+      // Auto-submit score
+      await fetch("/api/leaderboard/submit", {
+        method: "POST",
+        headers: {"Content-Type":"application/json", "Authorization": `Bearer ${TOKEN}`},
+        body: JSON.stringify({
+          section: data.section, score: data.score,
+          passed_tests: data.passed, total_tests: data.total,
+          time_taken: data.duration_seconds,
+        }),
+      });
+      loadLeaderboard();
+    } finally {
+      btn.disabled = false; btn.textContent = "▶ Run Tests";
+    }
+  }
+
+  async function loadLeaderboard() {
+    const res = await fetch("/api/leaderboard/");
+    const data = await res.json();
+    const tbody = document.getElementById("lb-body");
+    if (!data.leaderboard.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">No submissions yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.leaderboard.map((r, i) =>
+      `<tr class="rank-${r.rank}">
+         <td>${r.rank}</td>
+         <td>${r.username}</td>
+         <td>${r.section1 || 0}</td>
+         <td>${r.section2 || 0}</td>
+         <td>${r.section3 || 0}</td>
+         <td>${r.section4 || 0}</td>
+         <td><strong>${r.total_score}</strong></td>
+       </tr>`
+    ).join("");
+  }
+
+  async function loadSections() {
+    const res = await fetch("/api/info");
+    const data = await res.json();
+    document.getElementById("sections-grid").innerHTML =
+      data.sections.map(s =>
+        `<div class="section-card">
+           <h3>Section ${s.id}: ${s.title}</h3>
+           <div class="meta">${s.difficulty} &nbsp;|&nbsp; ⏱ ${s.duration} min &nbsp;|&nbsp; 🏆 ${s.points} pts</div>
+         </div>`
+      ).join("");
+  }
+
+  updateUserInfo();
+  loadSections();
+  loadLeaderboard();
+  setInterval(loadLeaderboard, 30000);  // auto-refresh every 30 s
+</script>
+</body>
+</html>
