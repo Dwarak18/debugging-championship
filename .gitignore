@@ -1,20 +1,29 @@
 # Secrets
 .env
+.env.*
+!.env.example
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .pytest_cache/
 *.egg-info/
 dist/
 build/
 .coverage
 htmlcov/
+.mypy_cache/
+.ruff_cache/
+venv/
+.venv/
+env/
 
 # Data
 webapp/data/
 *.db
+*.sqlite3
 
 # Docker
 *.log
@@ -23,10 +32,20 @@ nginx/certs/
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Node (if any tooling is added)
+node_modules/
+.npm/
+
+# Vercel
+.vercel/
 
 # Test reports
 *.json.report
