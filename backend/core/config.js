@@ -1,9 +1,12 @@
 'use strict';
 
 module.exports = {
-  // Database — Railway sets DATABASE_URL automatically
-  DATABASE_URL: (process.env.DATABASE_URL || 'postgresql://localhost/debugging')
+  // Database — Railway Postgres plugin injects DATABASE_URL automatically.
+  // The fallback is the public Railway Postgres URL used during setup.
+  DATABASE_URL: (process.env.DATABASE_URL ||
+    'postgresql://postgres:iqQjdyaYtexnTxYMylkqqpdbEPDGUrwn@switchback.proxy.rlwy.net:51533/railway')
     .replace(/^postgres:\/\//, 'postgresql://'),
+
 
   // Auth
   SECRET_KEY:                  process.env.SECRET_KEY                  || 'change-me-in-production-please',

@@ -1,8 +1,7 @@
 'use strict';
 const router  = require('express').Router();
 const db      = require('../core/database');
-const { hashPassword, verifyPassword, createAccessToken } = require('../core/security');
-const config  = require('../core/config');
+const { verifyPassword, createAccessToken } = require('../core/security');
 const { requireAuth } = require('../middleware/auth');
 
 // POST /api/auth/login
@@ -12,25 +11,23 @@ router.post('/login', async (req, res, next) => {
     if (!username || !password)
       return res.status(400).json({ detail: 'username and password required' });
 
-    // Admin shortcut
-    if (username === config.ADMIN_USERNAME && password === config.ADMIN_PASSWORD) {
-      const token = createAccessToken({ sub: username, is_admin: true, full_name: 'Admin', college: '', team: '' });
-      return res.json({ access_token: token, token_type: 'bearer', username, full_name: 'Admin', college: '', team: '' });
-    }
-
     const student = await db.getStudent(username);
     if (!student || !verifyPassword(password, student.password_hash))
       return res.status(401).json({ detail: 'Invalid username or password' });
 
     await db.updateLastLogin(username);
+    const isAdmin = !!student.is_admin;
     const token = createAccessToken({
-      sub: student.username, is_admin: !!student.is_admin,
-      full_name: student.full_name, college: student.college, team: student.team,
+      sub: student.username, is_admin: isAdmin,
+      full_name: student.full_name || (isAdmin ? 'Administrator' : ''),
+      college: student.college || '', team: student.team || '',
     });
     res.json({
       access_token: token, token_type: 'bearer',
-      username: student.username, full_name: student.full_name,
-      college: student.college, team: student.team,
+      username: student.username,
+      full_name: student.full_name || (isAdmin ? 'Administrator' : ''),
+      college: student.college || '', team: student.team || '',
+      is_admin: isAdmin,
     });
   } catch (err) { next(err); }
 });
