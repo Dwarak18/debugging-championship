@@ -32,6 +32,11 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       DATABASE_URL:  postgresql://${POSTGRES_USER:-dcuser}:${POSTGRES_PASSWORD:-dcpassword}@db:5432/${POSTGRES_DB:-debugchamp}
       REPO_ROOT:     /app
+    volumes:
+      - ./section1-multifile-debug/tests:/app/section1-multifile-debug/tests:ro
+      - ./section2-broken-recovery/tests:/app/section2-broken-recovery/tests:ro
+      - ./section3-memory-deadlock/tests:/app/section3-memory-deadlock/tests:ro
+      - ./section4-logical-tracing/tests:/app/section4-logical-tracing/tests:ro
     depends_on:
       db:
         condition: service_healthy

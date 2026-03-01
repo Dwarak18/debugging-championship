@@ -12,7 +12,9 @@ Endpoints:
 
 import csv
 import io
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -23,10 +25,13 @@ from webapp.core.database import (
     set_section_timer, reset_section_timer, get_all_section_timers,
     update_github_username,
     pause_section_timer, resume_section_timer, stop_section_timer,
+    list_anti_cheat_reports, get_anti_cheat_report,
+    list_editor_activity_timeline,
 )
 from webapp.core.deps import require_admin
 
 router = APIRouter()
+web_router = APIRouter()
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -262,3 +267,122 @@ def stop_timer(section: int):
         raise HTTPException(status_code=422, detail="section must be 1–4")
     stop_section_timer(section)
     return {"message": f"Section {section} stopped — submissions closed"}
+
+
+# ── Anti-cheat activity monitor ──────────────────────────────────────────────
+
+@router.get("/activity-monitor", dependencies=[Depends(require_admin)])
+def activity_monitor_data(limit: int = 200):
+    """All submissions with anti-cheat fields for dashboard table."""
+    rows = list_anti_cheat_reports(limit=min(max(limit, 1), 500), flagged_only=False)
+    return {
+        "submissions": [
+            {
+                "id": r["id"],
+                "team": r.get("team_id", ""),
+                "username": r.get("username", ""),
+                "passed": r.get("tests_passed", 0),
+                "total": 57,
+                "runtime_seconds": r.get("runtime_seconds", 0),
+                "risk_score": r.get("risk_score", 0),
+                "risk_level": r.get("risk_level", "Low"),
+                "duplicate_detected": r.get("duplicate_detected", False),
+                "test_hash_valid": r.get("test_hash_valid", True),
+                "suspicious_imports_count": len(r.get("suspicious_imports", []) or []),
+                "paste_attempts": r.get("paste_attempts", 0),
+                "large_injection_events": r.get("large_injection_events", 0),
+                "typing_speed_cps": r.get("average_typing_speed_cps", 0),
+                "copy_risk_score": r.get("copy_risk_score", 0),
+                "tab_switches": r.get("tab_switches", 0),
+                "window_blur_seconds": r.get("window_blur_seconds", 0),
+                "last_submission_time": r.get("created_at"),
+            }
+            for r in rows
+        ],
+        "count": len(rows),
+    }
+
+
+@router.get("/activity-monitor/flagged", dependencies=[Depends(require_admin)])
+def activity_monitor_flagged(limit: int = 200):
+    """High-risk submissions only with full flag breakdown."""
+    rows = list_anti_cheat_reports(limit=min(max(limit, 1), 500), flagged_only=True)
+    return {
+        "flagged": [
+            {
+                "id": r["id"],
+                "team": r.get("team_id", ""),
+                "username": r.get("username", ""),
+                "risk_score": r.get("risk_score", 0),
+                "risk_level": r.get("risk_level", "Low"),
+                "risk_flags": r.get("risk_flags", []),
+                "duplicate_detected": r.get("duplicate_detected", False),
+                "duplicate_pair_hash": r.get("submission_hash", ""),
+                "test_hash_valid": r.get("test_hash_valid", True),
+                "suspicious_imports": r.get("suspicious_imports", []),
+                "paste_attempts": r.get("paste_attempts", 0),
+                "large_injection_events": r.get("large_injection_events", 0),
+                "typing_speed_cps": r.get("average_typing_speed_cps", 0),
+                "copy_risk_score": r.get("copy_risk_score", 0),
+                "created_at": r.get("created_at"),
+            }
+            for r in rows
+        ],
+        "count": len(rows),
+    }
+
+
+@router.get("/activity-monitor/{report_id}", dependencies=[Depends(require_admin)])
+def activity_monitor_detail(report_id: int):
+    """Submission detail view with raw pytest output and risk explanation."""
+    row = get_anti_cheat_report(report_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    timeline_rows = list_editor_activity_timeline(team_id=row.get("team_id", ""), limit=150)
+
+    return {
+        "id": row["id"],
+        "team_id": row.get("team_id", ""),
+        "username": row.get("username", ""),
+        "section": row.get("section"),
+        "submission_hash": row.get("submission_hash", ""),
+        "tests_collected": row.get("tests_collected", 0),
+        "tests_passed": row.get("tests_passed", 0),
+        "tests_failed": row.get("tests_failed", 0),
+        "tests_skipped": row.get("tests_skipped", 0),
+        "runtime_seconds": row.get("runtime_seconds", 0),
+        "cpu_usage_percent": row.get("cpu_usage_percent", 0),
+        "memory_usage_mb": row.get("memory_usage_mb", 0),
+        "suspicious_imports": row.get("suspicious_imports", []),
+        "test_hash_valid": row.get("test_hash_valid", True),
+        "duplicate_detected": row.get("duplicate_detected", False),
+        "submission_rate_last_10min": row.get("submission_rate_last_10min", 0),
+        "paste_attempts": row.get("paste_attempts", 0),
+        "large_injection_events": row.get("large_injection_events", 0),
+        "typing_anomaly_detected": row.get("typing_anomaly_detected", False),
+        "copy_risk_score": row.get("copy_risk_score", 0),
+        "average_typing_speed_cps": row.get("average_typing_speed_cps", 0),
+        "tab_switches": row.get("tab_switches", 0),
+        "window_blur_seconds": row.get("window_blur_seconds", 0),
+        "risk_score": row.get("risk_score", 0),
+        "risk_level": row.get("risk_level", "Low"),
+        "risk_flags": row.get("risk_flags", []),
+        "risk_explanation": " ; ".join(row.get("risk_flags", [])) or "No risk flags",
+        "raw_pytest_output": row.get("raw_pytest_output", ""),
+        "timeline": list(reversed(timeline_rows)),
+        "created_at": row.get("created_at"),
+    }
+
+
+@web_router.get("/admin/activity-monitor")
+def activity_monitor_page():
+    """Simple admin monitor page (template example)."""
+    template_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "static",
+        "admin_activity.html",
+    )
+    if not os.path.isfile(template_path):
+        raise HTTPException(status_code=404, detail="Template not found")
+    return FileResponse(template_path)

@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Admin Activity Monitor</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #111827;
+      --card-2: #1f2937;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --purple: #a78bfa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 20% -10%, #1e293b 0%, var(--bg) 60%);
+      color: var(--text);
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 22px; }
+    .top {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 14px;
+    }
+    h1 { margin: 0; font-size: 1.35rem; }
+    .muted { color: var(--muted); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 16px; }
+    button, .btn {
+      border: 1px solid var(--border);
+      background: var(--card-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: .88rem;
+    }
+    button:hover, .btn:hover { border-color: var(--accent); }
+    button.active { border-color: var(--accent); color: var(--accent); }
+    .btn-primary { background: #0c4a6e; border-color: #075985; }
+    .search {
+      min-width: 260px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--text);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px,1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat {
+      background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .stat .k { color: var(--muted); font-size: .78rem; }
+    .stat .v { font-size: 1.35rem; font-weight: 700; margin-top: 2px; }
+    .panel {
+      background: rgba(17,24,39,.92);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 14px;
+      overflow: auto;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 1240px; }
+    th, td { border-bottom: 1px solid #253041; padding: 10px 8px; text-align: left; font-size: .84rem; vertical-align: top; }
+    th {
+      color: var(--muted);
+      font-size: .73rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      position: sticky;
+      top: 0;
+      background: #111827;
+      z-index: 1;
+    }
+    tr:hover td { background: rgba(56,189,248,.05); }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: .72rem;
+      border: 1px solid;
+    }
+    .low { color: #86efac; border-color: #166534; background: rgba(22,101,52,.22); }
+    .medium { color: #fcd34d; border-color: #92400e; background: rgba(146,64,14,.2); }
+    .high { color: #fecaca; border-color: #b91c1c; background: rgba(185,28,28,.2); }
+    .yes { color: var(--bad); font-weight: 700; }
+    .no { color: var(--ok); }
+    .hidden { display: none !important; }
+    .detail {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0b1424;
+      padding: 10px;
+      min-height: 220px;
+    }
+    .box h3 { margin: 0 0 8px; font-size: .9rem; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .78rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+      max-height: 480px;
+      overflow: auto;
+    }
+    #status {
+      border: 1px solid #1e3a8a;
+      background: rgba(30,64,175,.15);
+      color: #bfdbfe;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    @media (max-width: 1050px) {
+      .grid { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+      .detail { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>🛡 Admin Activity Monitor</h1>
+        <div class="muted">Anti-cheat + copy-risk visibility for administrative review</div>
+      </div>
+      <div class="toolbar" style="margin:0">
+        <a class="btn" href="/">← Back to Platform</a>
+        <button id="refreshBtn" class="btn-primary">Refresh</button>
+      </div>
+    </div>
+
+    <div id="status"></div>
+
+    <div class="muted" style="margin: 4px 0 12px; font-size:.84rem">
+      Note: This system does not guarantee copy-paste prevention. It adds friction and detection signals.
+      True prevention is not possible in uncontrolled environments.
+    </div>
+
+    <div class="grid">
+      <div class="stat"><div class="k">Submissions</div><div class="v" id="stTotal">0</div></div>
+      <div class="stat"><div class="k">Flagged (High Risk)</div><div class="v" id="stFlagged">0</div></div>
+      <div class="stat"><div class="k">Paste Attempts</div><div class="v" id="stPaste">0</div></div>
+      <div class="stat"><div class="k">Large Injections</div><div class="v" id="stInject">0</div></div>
+      <div class="stat"><div class="k">Avg Typing Speed</div><div class="v" id="stCps">0.00</div></div>
+    </div>
+
+    <div class="toolbar">
+      <button id="tabAll" class="active">All Submissions</button>
+      <button id="tabFlagged">Flagged Teams Only</button>
+      <input id="teamSearch" class="search" placeholder="Filter by team/username..."/>
+    </div>
+
+    <div id="allSection" class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Passed / 57</th>
+            <th>Runtime</th>
+            <th>Risk Score</th>
+            <th>Risk</th>
+            <th>Duplicate</th>
+            <th>Integrity</th>
+            <th>Suspicious</th>
+            <th>Paste</th>
+            <th>Injections</th>
+            <th>Typing Speed</th>
+            <th>Copy Risk</th>
+            <th>Last Submission</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody id="allRows"></tbody>
+      </table>
+    </div>
+
+    <div id="flaggedSection" class="panel hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Risk Score</th>
+            <th>Risk Flags</th>
+            <th>Duplicate Pair</th>
+            <th>Integrity</th>
+            <th>Copy Risk</th>
+          </tr>
+        </thead>
+        <tbody id="flaggedRows"></tbody>
+      </table>
+    </div>
+
+    <div class="detail">
+      <div class="box">
+        <h3>Submission Detail</h3>
+        <pre id="detailMeta">Select a row to inspect.</pre>
+      </div>
+      <div class="box">
+        <h3>Timeline + Raw Output</h3>
+        <pre id="detailRaw">No submission selected.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('dc_token') || '';
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const el = {
+      status: document.getElementById('status'),
+      tabAll: document.getElementById('tabAll'),
+      tabFlagged: document.getElementById('tabFlagged'),
+      allSection: document.getElementById('allSection'),
+      flaggedSection: document.getElementById('flaggedSection'),
+      allRows: document.getElementById('allRows'),
+      flaggedRows: document.getElementById('flaggedRows'),
+      detailMeta: document.getElementById('detailMeta'),
+      detailRaw: document.getElementById('detailRaw'),
+      refreshBtn: document.getElementById('refreshBtn'),
+      teamSearch: document.getElementById('teamSearch'),
+      stTotal: document.getElementById('stTotal'),
+      stFlagged: document.getElementById('stFlagged'),
+      stPaste: document.getElementById('stPaste'),
+      stInject: document.getElementById('stInject'),
+      stCps: document.getElementById('stCps'),
+    };
+
+    let allSubmissions = [];
+    let flagged = [];
+
+    function showStatus(msg, persistent=false) {
+      el.status.style.display = 'block';
+      el.status.textContent = msg;
+      if (!persistent) setTimeout(() => { el.status.style.display = 'none'; }, 3500);
+    }
+
+    function escapeHtml(v) {
+      return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function riskClass(level) {
+      const l = (level || '').toLowerCase();
+      if (l === 'high') return 'high';
+      if (l === 'medium') return 'medium';
+      return 'low';
+    }
+
+    function fmtDt(v) {
+      if (!v) return '—';
+      const d = new Date(v);
+      if (Number.isNaN(+d)) return String(v);
+      return d.toLocaleString();
+    }
+
+    function timelineMessage(ev) {
+      const ts = ev.created_at ? new Date(ev.created_at).toLocaleTimeString() : '--:--:--';
+      if (ev.event === 'paste_attempt') return `${ts} - Paste blocked`;
+      if (ev.event === 'large_injection') return `${ts} - ${ev.chars_delta || 0} chars added instantly ⚠ Suspicious`;
+      if (ev.event === 'typing_anomaly') return `${ts} - Unnatural typing pattern detected`;
+      if (ev.event === 'typing_sample') return `${ts} - Typed normally (${Number(ev.typing_speed_cps || 0).toFixed(2)} cps)`;
+      if (ev.event === 'tab_switch') return `${ts} - Tab switched`;
+      if (ev.event === 'window_blur') return `${ts} - Window blur (${Number((ev.metadata||{}).details?.blur_seconds || 0).toFixed(1)}s)`;
+      return `${ts} - ${ev.event}`;
+    }
+
+    function authGuard(res) {
+      if (res.status === 401 || res.status === 403) {
+        showStatus('Admin auth missing/expired. Please login at / and come back.', true);
+        return false;
+      }
+      return true;
+    }
+
+    function applySummary() {
+      const total = allSubmissions.length;
+      const high = allSubmissions.filter(s => (s.risk_level || '').toLowerCase() === 'high').length;
+      const paste = allSubmissions.reduce((a, s) => a + Number(s.paste_attempts || 0), 0);
+      const inj = allSubmissions.reduce((a, s) => a + Number(s.large_injection_events || 0), 0);
+      const cpsAvg = total
+        ? (allSubmissions.reduce((a, s) => a + Number(s.typing_speed_cps || 0), 0) / total)
+        : 0;
+
+      el.stTotal.textContent = String(total);
+      el.stFlagged.textContent = String(high);
+      el.stPaste.textContent = String(paste);
+      el.stInject.textContent = String(inj);
+      el.stCps.textContent = cpsAvg.toFixed(2);
+    }
+
+    function renderAll() {
+      const q = (el.teamSearch.value || '').trim().toLowerCase();
+      const rows = allSubmissions.filter(s => {
+        if (!q) return true;
+        return String(s.team || '').toLowerCase().includes(q) || String(s.username || '').toLowerCase().includes(q);
+      });
+
+      if (!rows.length) {
+        el.allRows.innerHTML = `<tr><td colspan="14" class="muted">No submissions found.</td></tr>`;
+        return;
+      }
+
+      el.allRows.innerHTML = rows.map(s => `
+        <tr>
+          <td><strong>${escapeHtml(s.team || s.username || '-')}</strong></td>
+          <td>${Number(s.passed || 0)} / 57</td>
+          <td>${Number(s.runtime_seconds || 0).toFixed(3)}s</td>
+          <td>${Number(s.risk_score || 0)}</td>
+          <td><span class="pill ${riskClass(s.risk_level)}">${escapeHtml(s.risk_level || 'Low')}</span></td>
+          <td class="${s.duplicate_detected ? 'yes' : 'no'}">${s.duplicate_detected ? 'Yes' : 'No'}</td>
+          <td class="${s.test_hash_valid ? 'no' : 'yes'}">${s.test_hash_valid ? 'Valid' : 'Modified'}</td>
+          <td>${Number(s.suspicious_imports_count || 0)}</td>
+          <td>${Number(s.paste_attempts || 0)}</td>
+          <td>${Number(s.large_injection_events || 0)}</td>
+          <td>${Number(s.typing_speed_cps || 0).toFixed(2)} cps</td>
+          <td>${Number(s.copy_risk_score || 0)}</td>
+          <td>${escapeHtml(fmtDt(s.last_submission_time))}</td>
+          <td><button onclick="loadDetail(${Number(s.id)})">View</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderFlagged() {
+      if (!flagged.length) {
+        el.flaggedRows.innerHTML = `<tr><td colspan="6" class="muted">No high-risk submissions yet.</td></tr>`;
+        return;
+      }
+      el.flaggedRows.innerHTML = flagged.map(f => `
+        <tr>
+          <td><strong>${escapeHtml(f.team || f.username || '-')}</strong></td>
+          <td>${Number(f.risk_score || 0)} (${escapeHtml(f.risk_level || 'High')})</td>
+          <td>${(f.risk_flags || []).map(v => `• ${escapeHtml(v)}`).join('<br/>') || '—'}</td>
+          <td>${f.duplicate_detected ? escapeHtml(f.duplicate_pair_hash || 'Yes') : '-'}</td>
+          <td class="${f.test_hash_valid ? 'no' : 'yes'}">${f.test_hash_valid ? 'Valid' : 'Modified'}</td>
+          <td>${Number(f.copy_risk_score || 0)}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url, { headers });
+      if (!authGuard(res)) throw new Error('Auth required');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || `HTTP ${res.status}`);
+      return data;
+    }
+
+    async function reloadData() {
+      showStatus('Refreshing activity monitor...');
+      const [allData, flaggedData] = await Promise.all([
+        fetchJson('/api/admin/activity-monitor'),
+        fetchJson('/api/admin/activity-monitor/flagged'),
+      ]);
+      allSubmissions = allData.submissions || [];
+      flagged = flaggedData.flagged || [];
+      applySummary();
+      renderAll();
+      renderFlagged();
+      showStatus('Updated');
+    }
+
+    async function loadDetail(id) {
+      try {
+        const data = await fetchJson(`/api/admin/activity-monitor/${id}`);
+        const meta = [
+          `Team: ${data.team_id || '-'}`,
+          `User: ${data.username || '-'}`,
+          `Submission Hash: ${data.submission_hash || '-'}`,
+          `Risk: ${data.risk_score || 0} (${data.risk_level || 'Low'})`,
+          `Copy Risk: ${data.copy_risk_score || 0}`,
+          `Paste Attempts: ${data.paste_attempts || 0}`,
+          `Large Injections: ${data.large_injection_events || 0}`,
+          `Typing Anomaly: ${data.typing_anomaly_detected ? 'Yes' : 'No'}`,
+          `Avg Typing Speed: ${Number(data.average_typing_speed_cps || 0).toFixed(2)} cps`,
+          `Tab Switches: ${data.tab_switches || 0}`,
+          `Window Blur Time: ${Number(data.window_blur_seconds || 0).toFixed(2)}s`,
+          '',
+          'Risk Flags:',
+          ...((data.risk_flags || []).map(v => `- ${v}`) || ['- none'])
+        ];
+        const right = [
+          'Timeline:',
+          ...((data.timeline || []).map(timelineMessage) || ['(empty)']),
+          '',
+          'Raw Pytest Output:',
+          data.raw_pytest_output || '(none)'
+        ];
+        el.detailMeta.textContent = meta.join('\n');
+        el.detailRaw.textContent = right.join('\n');
+      } catch (err) {
+        el.detailMeta.textContent = `Failed to load detail: ${err?.message || err}`;
+      }
+    }
+
+    function setTab(kind) {
+      const isAll = kind === 'all';
+      el.tabAll.classList.toggle('active', isAll);
+      el.tabFlagged.classList.toggle('active', !isAll);
+      el.allSection.classList.toggle('hidden', !isAll);
+      el.flaggedSection.classList.toggle('hidden', isAll);
+    }
+
+    el.tabAll.onclick = () => setTab('all');
+    el.tabFlagged.onclick = () => setTab('flagged');
+    el.refreshBtn.onclick = () => reloadData().catch(err => showStatus(`Refresh failed: ${err.message}`, true));
+    el.teamSearch.oninput = () => renderAll();
+
+    if (!token) {
+      showStatus('No admin token found. Login at / first, then reopen this page.', true);
+    } else {
+      reloadData().catch(err => showStatus(`Failed to load monitor: ${err.message}`, true));
+      setInterval(() => reloadData().catch(() => {}), 20000);
+    }
+  </script>
+</body>
+</html>

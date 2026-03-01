@@ -99,19 +99,80 @@ def init_db():
                 -- Migration: add github_username if the column doesn't exist yet
                 ALTER TABLE students ADD COLUMN IF NOT EXISTS github_username TEXT DEFAULT '';
 
-                -- Migration: add pause/resume support to timers
-                ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS paused_at       TIMESTAMPTZ;
-                ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS elapsed_seconds INTEGER DEFAULT 0;
-
                 CREATE TABLE IF NOT EXISTS section_timers (
                     section          INTEGER PRIMARY KEY,
                     duration_minutes INTEGER NOT NULL DEFAULT 45,
                     start_time       TIMESTAMPTZ,
                     is_active        BOOLEAN DEFAULT FALSE
                 );
+
+                -- Migration: add pause/resume support to timers
+                ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS paused_at       TIMESTAMPTZ;
+                ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS elapsed_seconds INTEGER DEFAULT 0;
                 INSERT INTO section_timers (section, duration_minutes)
                 VALUES (1,45),(2,40),(3,50),(4,35)
                 ON CONFLICT (section) DO NOTHING;
+
+                CREATE TABLE IF NOT EXISTS anti_cheat_reports (
+                    id                           SERIAL PRIMARY KEY,
+                    username                     TEXT NOT NULL,
+                    team_id                      TEXT NOT NULL DEFAULT '',
+                    section                      INTEGER NOT NULL,
+                    submission_hash              TEXT NOT NULL,
+                    tests_collected              INTEGER NOT NULL DEFAULT 0,
+                    tests_passed                 INTEGER NOT NULL DEFAULT 0,
+                    tests_failed                 INTEGER NOT NULL DEFAULT 0,
+                    tests_skipped                INTEGER NOT NULL DEFAULT 0,
+                    runtime_seconds              REAL NOT NULL DEFAULT 0,
+                    cpu_usage_percent            REAL NOT NULL DEFAULT 0,
+                    memory_usage_mb              REAL NOT NULL DEFAULT 0,
+                    suspicious_imports           JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    test_hash_valid              BOOLEAN NOT NULL DEFAULT TRUE,
+                    duplicate_detected           BOOLEAN NOT NULL DEFAULT FALSE,
+                    submission_rate_last_10min   INTEGER NOT NULL DEFAULT 0,
+                    paste_attempts               INTEGER NOT NULL DEFAULT 0,
+                    large_injection_events       INTEGER NOT NULL DEFAULT 0,
+                    typing_anomaly_detected      BOOLEAN NOT NULL DEFAULT FALSE,
+                    copy_risk_score              INTEGER NOT NULL DEFAULT 0,
+                    average_typing_speed_cps     REAL NOT NULL DEFAULT 0,
+                    tab_switches                 INTEGER NOT NULL DEFAULT 0,
+                    window_blur_seconds          REAL NOT NULL DEFAULT 0,
+                    risk_score                   INTEGER NOT NULL DEFAULT 0,
+                    risk_level                   TEXT NOT NULL DEFAULT 'Low',
+                    risk_flags                   JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    raw_pytest_output            TEXT NOT NULL DEFAULT '',
+                    created_at                   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                ALTER TABLE anti_cheat_reports ADD COLUMN IF NOT EXISTS paste_attempts           INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE anti_cheat_reports ADD COLUMN IF NOT EXISTS large_injection_events   INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE anti_cheat_reports ADD COLUMN IF NOT EXISTS typing_anomaly_detected  BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE anti_cheat_reports ADD COLUMN IF NOT EXISTS copy_risk_score          INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE anti_cheat_reports ADD COLUMN IF NOT EXISTS average_typing_speed_cps REAL NOT NULL DEFAULT 0;
+                ALTER TABLE anti_cheat_reports ADD COLUMN IF NOT EXISTS tab_switches             INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE anti_cheat_reports ADD COLUMN IF NOT EXISTS window_blur_seconds      REAL NOT NULL DEFAULT 0;
+
+                CREATE TABLE IF NOT EXISTS editor_activity_logs (
+                    id                     SERIAL PRIMARY KEY,
+                    username               TEXT NOT NULL,
+                    team_id                TEXT NOT NULL DEFAULT '',
+                    event                  TEXT NOT NULL,
+                    editor_length_before   INTEGER NOT NULL DEFAULT 0,
+                    editor_length_after    INTEGER NOT NULL DEFAULT 0,
+                    chars_delta            INTEGER NOT NULL DEFAULT 0,
+                    delta_ms               INTEGER NOT NULL DEFAULT 0,
+                    typing_speed_cps       REAL NOT NULL DEFAULT 0,
+                    metadata               JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_eal_team_time ON editor_activity_logs(team_id, created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_eal_user_time ON editor_activity_logs(username, created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_eal_event ON editor_activity_logs(event);
+
+                CREATE INDEX IF NOT EXISTS idx_acr_created_at ON anti_cheat_reports(created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_acr_team_id ON anti_cheat_reports(team_id);
+                CREATE INDEX IF NOT EXISTS idx_acr_submission_hash ON anti_cheat_reports(submission_hash);
             """)
 
 
@@ -305,4 +366,236 @@ def get_all_section_timers() -> List[Dict]:
     with _conn() as conn:
         with conn.cursor(cursor_factory=RD) as cur:
             cur.execute("SELECT * FROM section_timers ORDER BY section")
+            return _rows(cur)
+
+
+# ── Anti-cheat reports ───────────────────────────────────────────────────────
+
+def save_anti_cheat_report(report: Dict) -> int:
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO anti_cheat_reports (
+                    username, team_id, section, submission_hash,
+                    tests_collected, tests_passed, tests_failed, tests_skipped,
+                    runtime_seconds, cpu_usage_percent, memory_usage_mb,
+                    suspicious_imports, test_hash_valid, duplicate_detected,
+                    submission_rate_last_10min, paste_attempts, large_injection_events,
+                    typing_anomaly_detected, copy_risk_score, average_typing_speed_cps,
+                    tab_switches, window_blur_seconds,
+                    risk_score, risk_level, risk_flags,
+                    raw_pytest_output
+                )
+                VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s,
+                    %s, %s, %s,
+                    %s
+                )
+                RETURNING id
+                """,
+                (
+                    report.get("username", ""),
+                    report.get("team_id", ""),
+                    report.get("section", 0),
+                    report.get("submission_hash", ""),
+                    report.get("tests_collected", 0),
+                    report.get("tests_passed", 0),
+                    report.get("tests_failed", 0),
+                    report.get("tests_skipped", 0),
+                    report.get("runtime_seconds", 0.0),
+                    report.get("cpu_usage_percent", 0.0),
+                    report.get("memory_usage_mb", 0.0),
+                    psycopg2.extras.Json(report.get("suspicious_imports", [])),
+                    report.get("test_hash_valid", True),
+                    report.get("duplicate_detected", False),
+                    report.get("submission_rate_last_10min", 0),
+                    report.get("paste_attempts", 0),
+                    report.get("large_injection_events", 0),
+                    report.get("typing_anomaly_detected", False),
+                    report.get("copy_risk_score", 0),
+                    report.get("average_typing_speed_cps", 0.0),
+                    report.get("tab_switches", 0),
+                    report.get("window_blur_seconds", 0.0),
+                    report.get("risk_score", 0),
+                    report.get("risk_level", "Low"),
+                    psycopg2.extras.Json(report.get("risk_flags", [])),
+                    report.get("raw_pytest_output", ""),
+                ),
+            )
+            return int(cur.fetchone()[0])
+
+
+def find_duplicate_submission_hash(submission_hash: str, team_id: str) -> Optional[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute(
+                """
+                SELECT id, username, team_id, submission_hash, created_at
+                FROM anti_cheat_reports
+                WHERE submission_hash = %s AND team_id <> %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (submission_hash, team_id),
+            )
+            return _row(cur)
+
+
+def count_recent_submissions(team_id: str, minutes: int = 10) -> int:
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT COUNT(*)
+                FROM anti_cheat_reports
+                WHERE team_id = %s
+                  AND created_at >= NOW() - (%s::text || ' minutes')::interval
+                """,
+                (team_id, minutes),
+            )
+            return int(cur.fetchone()[0])
+
+
+def list_anti_cheat_reports(limit: int = 200, flagged_only: bool = False) -> List[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            if flagged_only:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM anti_cheat_reports
+                    WHERE risk_score >= 60
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM anti_cheat_reports
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+            return _rows(cur)
+
+
+def get_anti_cheat_report(report_id: int) -> Optional[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("SELECT * FROM anti_cheat_reports WHERE id=%s", (report_id,))
+            return _row(cur)
+
+
+def log_editor_activity(
+    username: str,
+    team_id: str,
+    event: str,
+    editor_length_before: int = 0,
+    editor_length_after: int = 0,
+    chars_delta: int = 0,
+    delta_ms: int = 0,
+    typing_speed_cps: float = 0.0,
+    metadata: Optional[Dict] = None,
+) -> int:
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO editor_activity_logs (
+                    username, team_id, event,
+                    editor_length_before, editor_length_after,
+                    chars_delta, delta_ms, typing_speed_cps, metadata
+                )
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
+                """,
+                (
+                    username,
+                    team_id,
+                    event,
+                    int(editor_length_before or 0),
+                    int(editor_length_after or 0),
+                    int(chars_delta or 0),
+                    int(delta_ms or 0),
+                    float(typing_speed_cps or 0.0),
+                    psycopg2.extras.Json(metadata or {}),
+                ),
+            )
+            return int(cur.fetchone()[0])
+
+
+def get_editor_activity_metrics(team_id: str, minutes: int = 10) -> Dict:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute(
+                """
+                SELECT
+                    COALESCE(SUM(CASE WHEN event='paste_attempt' THEN 1 ELSE 0 END),0) AS paste_attempts,
+                    COALESCE(SUM(CASE WHEN event='large_injection' THEN 1 ELSE 0 END),0) AS large_injection_events,
+                    COALESCE(SUM(CASE WHEN event='typing_anomaly' THEN 1 ELSE 0 END),0) AS typing_anomaly_events,
+                    COALESCE(AVG(CASE WHEN typing_speed_cps > 0 THEN typing_speed_cps END),0) AS average_typing_speed_cps,
+                    COALESCE(SUM(CASE WHEN event='tab_switch' THEN 1 ELSE 0 END),0) AS tab_switches,
+                    COALESCE(SUM(CASE WHEN event='window_blur' THEN COALESCE((metadata->'details'->>'blur_seconds')::REAL,0) ELSE 0 END),0) AS window_blur_seconds
+                FROM editor_activity_logs
+                WHERE team_id=%s
+                  AND created_at >= NOW() - (%s::text || ' minutes')::interval
+                """,
+                (team_id, minutes),
+            )
+            row = _row(cur) or {}
+
+    paste_attempts = int(row.get("paste_attempts", 0) or 0)
+    large_injections = int(row.get("large_injection_events", 0) or 0)
+    typing_anomaly_events = int(row.get("typing_anomaly_events", 0) or 0)
+    avg_cps = float(row.get("average_typing_speed_cps", 0) or 0.0)
+
+    copy_risk_score = 0
+    if paste_attempts > 0:
+        copy_risk_score += 10
+    if large_injections > 0:
+        copy_risk_score += 25
+    if paste_attempts > 1:
+        copy_risk_score += 15
+    if typing_anomaly_events > 0:
+        copy_risk_score += 20
+
+    return {
+        "paste_attempts": paste_attempts,
+        "large_injection_events": large_injections,
+        "typing_anomaly_detected": typing_anomaly_events > 0,
+        "typing_anomaly_events": typing_anomaly_events,
+        "average_typing_speed_cps": round(avg_cps, 2),
+        "copy_risk_score": copy_risk_score,
+        "tab_switches": int(row.get("tab_switches", 0) or 0),
+        "window_blur_seconds": float(row.get("window_blur_seconds", 0) or 0.0),
+    }
+
+
+def list_editor_activity_timeline(team_id: str, limit: int = 200) -> List[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute(
+                """
+                SELECT id, username, team_id, event,
+                       editor_length_before, editor_length_after,
+                       chars_delta, delta_ms, typing_speed_cps,
+                       metadata, created_at
+                FROM editor_activity_logs
+                WHERE team_id=%s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (team_id, limit),
+            )
             return _rows(cur)

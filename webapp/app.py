@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(download_router,    prefix="/api/download",    tags=["Download"])
     app.include_router(info.router,        prefix="/api",             tags=["Info"])
     app.include_router(admin.router,       prefix="/api/admin",       tags=["Admin"])
+    app.include_router(admin.web_router,                               tags=["Admin UI"])
 
     # ── Static files (frontend) ───────────────────────────────────────────────
     static_dir = os.path.join(os.path.dirname(__file__), "static")

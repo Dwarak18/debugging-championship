@@ -679,6 +679,25 @@
         <div id="timers-msg"></div>
       </div>
 
+      <!-- Activity Monitor quick access -->
+      <div class="card" style="margin-top:16px">
+        <div class="flex between center" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">🛡 Anti-Cheat Activity Monitor</div>
+          <button class="refresh-btn" onclick="openActivityMonitor()">Open</button>
+        </div>
+        <p class="muted" style="font-size:.82rem;line-height:1.6">
+          View submission risk, paste attempts, large code injections, typing anomalies,
+          duplicate detection, and per-team timeline events.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn-sm btn-accent" onclick="openActivityMonitor()">Open Activity Monitor</button>
+          <button class="btn-sm" onclick="openActivityMonitor(true)"
+                  style="background:var(--surface2);border:1px solid var(--border);color:var(--text)">
+            Open in New Tab
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- ══ Validator ═══════════════════════════════════════════════════════════════ -->
@@ -753,6 +772,7 @@ var SECTION_TIMERS = {};
 //          snapshot_at_ms (when snapshot was taken), duration_minutes }
 var SECTION_SCORES = {1:0, 2:0, 3:0, 4:0}; // track scores for lock gating
 var GITHUB_USERNAME = localStorage.getItem("dc_github") || "";
+var COPY_MONITOR_STARTED = false;
 const SECTIONS = [
   {id:1, title:"Multi-File Debugging",    duration:45, points:100, diff:"⭐⭐⭐"},
   {id:2, title:"Broken Project Recovery", duration:40, points:100, diff:"⭐⭐⭐⭐"},
@@ -830,6 +850,7 @@ function showApp() {
       `✅ Saved: ${GITHUB_USERNAME}`;
     document.getElementById("github-username-msg").style.color = "var(--green)";
   }
+  initCopyPasteMonitor();
 }
 
 // ── GitHub Username ────────────────────────────────────────────────────────
@@ -1399,6 +1420,255 @@ function escHtml(s) {
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;");
+}
+
+function openActivityMonitor(newTab=false) {
+  const url = '/admin/activity-monitor';
+  if (newTab) {
+    window.open(url, '_blank', 'noopener');
+  } else {
+    window.location.href = url;
+  }
+}
+
+// ── Copy/Paste prevention + detection telemetry ───────────────────────────
+function isMonitoredEditorTarget(target) {
+  if (!target) return false;
+  const tag = (target.tagName || '').toUpperCase();
+  if (tag === 'TEXTAREA') return true;
+  if (tag === 'INPUT') {
+    const t = (target.type || 'text').toLowerCase();
+    return ['text','search','url','email','password','tel'].includes(t);
+  }
+  return !!target.isContentEditable;
+}
+
+function getEditorText(target) {
+  if (!target) return '';
+  if ((target.tagName || '').toUpperCase() === 'TEXTAREA' || (target.tagName || '').toUpperCase() === 'INPUT') {
+    return target.value || '';
+  }
+  if (target.isContentEditable) return target.innerText || '';
+  return '';
+}
+
+function getEditorLength(target) {
+  return getEditorText(target).length;
+}
+
+function safeDetails(obj) {
+  try { return JSON.parse(JSON.stringify(obj || {})); }
+  catch { return {}; }
+}
+
+function sendEditorActivity(evt) {
+  if (!TOKEN) return;
+  const payload = {
+    team_id: USER.team || USER.username || 'unknown',
+    timestamp: new Date().toISOString(),
+    event: evt.event,
+    editor_length_before: evt.editor_length_before || 0,
+    editor_length_after: evt.editor_length_after || 0,
+    chars_delta: evt.chars_delta || 0,
+    delta_ms: evt.delta_ms || 0,
+    typing_speed_cps: evt.typing_speed_cps || 0,
+    flags: evt.flags || [],
+    details: safeDetails(evt.details || {}),
+  };
+
+  fetch('/api/validate/editor-activity', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${TOKEN}`,
+    },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function extractInsertedChunk(prev, curr) {
+  if (!prev || !curr || curr.length <= prev.length) return '';
+  let i = 0;
+  while (i < prev.length && i < curr.length && prev[i] === curr[i]) i++;
+  let jPrev = prev.length - 1;
+  let jCurr = curr.length - 1;
+  while (jPrev >= i && jCurr >= i && prev[jPrev] === curr[jCurr]) {
+    jPrev--; jCurr--;
+  }
+  return curr.slice(i, jCurr + 1);
+}
+
+function initCopyPasteMonitor() {
+  if (COPY_MONITOR_STARTED) return;
+  COPY_MONITOR_STARTED = true;
+
+  const stateByEl = new WeakMap();
+  const typingAgg = { chars: 0, ms: 0, lastFlush: Date.now() };
+  let blurStartMs = null;
+
+  function getState(el) {
+    const prev = stateByEl.get(el);
+    if (prev) return prev;
+    const now = Date.now();
+    const st = { value: getEditorText(el), len: getEditorLength(el), at: now };
+    stateByEl.set(el, st);
+    return st;
+  }
+
+  function flushTypingSample(force=false) {
+    const now = Date.now();
+    if (!force && now - typingAgg.lastFlush < 5000) return;
+    if (typingAgg.ms > 0 && typingAgg.chars > 0) {
+      const cps = typingAgg.chars / (typingAgg.ms / 1000);
+      sendEditorActivity({
+        event: 'typing_sample',
+        typing_speed_cps: Number(cps.toFixed(3)),
+        chars_delta: typingAgg.chars,
+        delta_ms: typingAgg.ms,
+      });
+    }
+    typingAgg.chars = 0;
+    typingAgg.ms = 0;
+    typingAgg.lastFlush = now;
+  }
+
+  document.addEventListener('paste', function(e) {
+    const t = e.target;
+    if (!isMonitoredEditorTarget(t)) return;
+    const before = getEditorLength(t);
+    e.preventDefault();
+    const after = getEditorLength(t);
+    sendEditorActivity({
+      event: 'paste_attempt',
+      editor_length_before: before,
+      editor_length_after: after,
+      flags: ['paste_blocked'],
+    });
+    showToast('Paste is disabled in this editor.', 'warn', 1800);
+  }, true);
+
+  document.addEventListener('contextmenu', function(e) {
+    const t = e.target;
+    if (!isMonitoredEditorTarget(t)) return;
+    const before = getEditorLength(t);
+    e.preventDefault();
+    sendEditorActivity({
+      event: 'paste_attempt',
+      editor_length_before: before,
+      editor_length_after: before,
+      flags: ['context_menu_paste_blocked'],
+    });
+  }, true);
+
+  document.addEventListener('keydown', function(e) {
+    const t = e.target;
+    if (!isMonitoredEditorTarget(t)) return;
+    const k = (e.key || '').toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === 'v') {
+      const before = getEditorLength(t);
+      e.preventDefault();
+      const after = getEditorLength(t);
+      sendEditorActivity({
+        event: 'paste_attempt',
+        editor_length_before: before,
+        editor_length_after: after,
+        flags: ['keyboard_paste_blocked'],
+      });
+      showToast('Paste shortcut is blocked.', 'warn', 1600);
+    }
+  }, true);
+
+  document.addEventListener('focusin', function(e) {
+    const t = e.target;
+    if (!isMonitoredEditorTarget(t)) return;
+    getState(t);
+  });
+
+  document.addEventListener('input', function(e) {
+    const t = e.target;
+    if (!isMonitoredEditorTarget(t)) return;
+    const now = Date.now();
+    const prev = getState(t);
+    const currValue = getEditorText(t);
+    const currLen = currValue.length;
+    const deltaChars = currLen - prev.len;
+    const deltaMs = Math.max(1, now - prev.at);
+    const cps = deltaChars > 0 ? (deltaChars / (deltaMs / 1000)) : 0;
+
+    if (deltaChars > 0) {
+      typingAgg.chars += deltaChars;
+      typingAgg.ms += deltaMs;
+      flushTypingSample(false);
+    }
+
+    const injected = extractInsertedChunk(prev.value, currValue);
+    const fnDefs = (injected.match(/\bdef\s+\w+\s*\(/g) || []).length;
+    const looksPerfectIndent = /\n\s{4,}\S/.test(injected);
+    const possibleExternalCopy = fnDefs >= 2 || looksPerfectIndent;
+
+    if (deltaChars > 100 && deltaMs < 1000) {
+      sendEditorActivity({
+        event: 'large_injection',
+        editor_length_before: prev.len,
+        editor_length_after: currLen,
+        chars_delta: deltaChars,
+        delta_ms: deltaMs,
+        typing_speed_cps: Number(cps.toFixed(3)),
+        flags: possibleExternalCopy ? ['Large Code Injection Detected', 'Possible External Copy Source'] : ['Large Code Injection Detected'],
+        details: {
+          possible_external_copy_source: possibleExternalCopy,
+          function_defs_in_insert: fnDefs,
+          perfect_indentation_like: looksPerfectIndent,
+        },
+      });
+    }
+
+    const unnatural = (deltaChars >= 30 && deltaMs < 120) || cps > 25;
+    if (unnatural) {
+      sendEditorActivity({
+        event: 'typing_anomaly',
+        editor_length_before: prev.len,
+        editor_length_after: currLen,
+        chars_delta: deltaChars,
+        delta_ms: deltaMs,
+        typing_speed_cps: Number(cps.toFixed(3)),
+        flags: ['Unnatural Typing Pattern'],
+      });
+    }
+
+    prev.value = currValue;
+    prev.len = currLen;
+    prev.at = now;
+    stateByEl.set(t, prev);
+  }, true);
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      sendEditorActivity({ event: 'tab_switch', details: { reason: 'visibility_hidden' } });
+    }
+  });
+
+  window.addEventListener('blur', function() {
+    blurStartMs = Date.now();
+  });
+
+  window.addEventListener('focus', function() {
+    if (!blurStartMs) return;
+    const blurMs = Date.now() - blurStartMs;
+    blurStartMs = null;
+    if (blurMs > 300) {
+      sendEditorActivity({
+        event: 'window_blur',
+        delta_ms: blurMs,
+        details: { blur_seconds: Number((blurMs / 1000).toFixed(2)) },
+      });
+    }
+  });
+
+  window.addEventListener('beforeunload', function() {
+    flushTypingSample(true);
+  });
 }
 
 // Auto-refresh leaderboard every 30s when on that page
