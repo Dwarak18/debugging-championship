@@ -1,11 +1,12 @@
 {
   "outputDirectory": "frontend",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "https://debugging-championship-production.up.railway.app/api/:path*"
-    }
+      "src": "/api/(.*)",
+      "dest": "https://debugging-championship-production.up.railway.app/api/$1"
+    },
+    { "handle": "filesystem" },
+    { "src": "/admin", "dest": "/admin.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

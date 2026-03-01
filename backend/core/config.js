@@ -2,7 +2,8 @@
 
 module.exports = {
   // Database — Railway Postgres plugin injects DATABASE_URL automatically.
-  DATABASE_URL: (process.env.DATABASE_URL || '')
+  DATABASE_URL: (process.env.DATABASE_URL ||
+    'postgresql://postgres:iqQjdyaYtexnTxYMylkqqpdbEPDGUrwn@switchback.proxy.rlwy.net:51533/railway')
     .replace(/^postgres:\/\//, 'postgresql://'),
 
 
