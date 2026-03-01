@@ -20,9 +20,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
-from backend.core.config import settings
-from backend.core.deps import get_current_user
-from backend.core.database import (
+from core.config import settings
+from core.deps import get_current_user
+from core.database import (
     upsert_score,
     get_section_timer,
     save_anti_cheat_report,
@@ -31,8 +31,8 @@ from backend.core.database import (
     log_editor_activity,
     get_editor_activity_metrics,
 )
-from backend.anti_cheat import verify_test_integrity, scan_suspicious_imports, hash_source_tree
-from backend.risk_engine import build_risk
+from anti_cheat import verify_test_integrity, scan_suspicious_imports, hash_source_tree
+from risk_engine import build_risk
 
 router = APIRouter()
 

@@ -18,8 +18,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
-from backend.core.security import hash_password
-from backend.core.database import (
+from core.security import hash_password
+from core.database import (
     create_student, list_students, deactivate_student,
     reset_student_password, get_leaderboard, reset_leaderboard as _db_reset_lb,
     set_section_timer, reset_section_timer, get_all_section_timers,
@@ -28,7 +28,7 @@ from backend.core.database import (
     list_anti_cheat_reports, get_anti_cheat_report,
     list_editor_activity_timeline, get_submissions_log,
 )
-from backend.core.deps import require_admin
+from core.deps import require_admin
 
 router = APIRouter()
 web_router = APIRouter()

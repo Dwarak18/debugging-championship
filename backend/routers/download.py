@@ -12,8 +12,8 @@ import io
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from backend.core.config import settings
-from backend.core.security import verify_token
+from core.config import settings
+from core.security import verify_token
 
 router = APIRouter()
 

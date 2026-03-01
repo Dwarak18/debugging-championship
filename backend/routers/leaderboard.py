@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
-from backend.core.database import get_leaderboard, upsert_score, get_user_scores
-from backend.core.deps import get_current_user
+from core.database import get_leaderboard, upsert_score, get_user_scores
+from core.deps import get_current_user
 
 router = APIRouter()
 

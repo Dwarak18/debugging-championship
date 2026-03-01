@@ -6,10 +6,10 @@ Students CANNOT self-register.
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
 
-from backend.core.config import settings
-from backend.core.security import verify_password, create_access_token
-from backend.core.database import get_student, update_last_login
-from backend.core.deps import get_current_user
+from core.config import settings
+from core.security import verify_password, create_access_token
+from core.database import get_student, update_last_login
+from core.deps import get_current_user
 
 router = APIRouter()
 

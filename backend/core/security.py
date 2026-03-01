@@ -10,7 +10,7 @@ import hmac
 import base64
 import os
 
-from backend.core.config import settings
+from core.config import settings
 
 
 # ── Password hashing (PBKDF2-SHA256, no external deps) ───────────────────────

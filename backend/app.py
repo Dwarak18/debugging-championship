@@ -6,11 +6,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from backend.routers import auth, leaderboard, runner, info, admin
-from backend.routers.validator import router as validator_router
-from backend.routers.download import router as download_router
-from backend.core.config import settings
-from backend.core.database import init_db
+from routers import auth, leaderboard, runner, info, admin
+from routers.validator import router as validator_router
+from routers.download import router as download_router
+from core.config import settings
+from core.database import init_db
 
 
 def create_app() -> FastAPI:

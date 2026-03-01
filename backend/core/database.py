@@ -13,7 +13,7 @@ from psycopg2.pool import ThreadedConnectionPool
 from contextlib import contextmanager
 from typing import List, Dict, Optional
 
-from backend.core.config import settings
+from core.config import settings
 
 # ── Connection pool ───────────────────────────────────────────────────────────
 _pool: Optional[ThreadedConnectionPool] = None
