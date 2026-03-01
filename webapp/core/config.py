@@ -20,8 +20,10 @@ class Settings:
     API_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("API_TOKEN_EXPIRE_MINUTES", "480"))  # 8 h
 
     # Hosts / CORS
-    ALLOWED_HOSTS: List[str]   = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-    ALLOWED_ORIGINS: List[str] = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://localhost:3000").split(",")
+    # Set ALLOWED_HOSTS=* and ALLOWED_ORIGINS=* on Railway to accept any domain
+    ALLOWED_HOSTS: List[str]   = os.getenv("ALLOWED_HOSTS", "*").split(",")
+    _raw_origins: str          = os.getenv("ALLOWED_ORIGINS", "*")
+    ALLOWED_ORIGINS: List[str] = ["*"] if _raw_origins.strip() == "*" else _raw_origins.split(",")
 
     # PostgreSQL connection string
     # Format: postgresql://user:password@host:port/dbname

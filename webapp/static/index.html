@@ -750,6 +750,12 @@
 </div>
 
 <script>
+// ── Backend base URL ───────────────────────────────────────────────────────
+// When hosted on Vercel (frontend) + Railway (backend), set this to your
+// Railway app URL, e.g. "https://your-app.up.railway.app"
+// Leave empty ("") when frontend and backend are on the same origin.
+var API_BASE = "";
+
 // ── State ──────────────────────────────────────────────────────────────────
 // Use var (not let/const) to avoid Temporal Dead Zone when api() triggers
 // doLogout() during page init before all declarations are reached.
@@ -1397,7 +1403,7 @@ async function api(url, method="GET", body=null, auth=true) {
   const opts = { method, headers: {"Content-Type":"application/json"} };
   if (auth && TOKEN) opts.headers["Authorization"] = `Bearer ${TOKEN}`;
   if (body)          opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
+  const res = await fetch(API_BASE + url, opts);
   if (res.status === 401) { doLogout(); }
   return res;
 }

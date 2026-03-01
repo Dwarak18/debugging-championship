@@ -1,0 +1,9 @@
+{
+  "outputDirectory": "webapp/static",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://YOUR-APP.up.railway.app/api/$1"
+    }
+  ]
+}
