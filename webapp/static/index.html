@@ -477,6 +477,8 @@
       <button class="nav-btn"       onclick="showPage('validator',this);buildValidatorPicker()">⚡ Validate</button>
       <button class="nav-btn admin-only hidden" id="admin-nav"
               onclick="showPage('admin',this);loadStudents();loadAdminTimers()">⚙️ Admin</button>
+      <button class="nav-btn admin-only hidden" id="fake-admin-nav"
+              onclick="window.open('https://youtu.be/dQw4w9WgXcQ','_blank')">⚙️ Admin</button>
     </nav>
     <div class="user-pill">
       <span id="topbar-name">—</span>
@@ -799,6 +801,8 @@ function doLogout() {
   localStorage.removeItem("dc_token");
   localStorage.removeItem("dc_user");
   localStorage.removeItem("dc_github");
+  document.getElementById("admin-nav").classList.add("hidden");
+  document.getElementById("fake-admin-nav").classList.add("hidden");
   document.getElementById("app").style.display = "none";
   document.getElementById("login-page").classList.add("visible");
   document.getElementById("l-user").value = "";
@@ -813,6 +817,8 @@ function showApp() {
     USER.full_name || USER.username;
   if (USER.is_admin)
     document.getElementById("admin-nav").classList.remove("hidden");
+  else
+    document.getElementById("fake-admin-nav").classList.remove("hidden");
   buildDashboard();
   loadDashboardScores();
   loadTimers().then(startTimerTick);
