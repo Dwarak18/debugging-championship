@@ -8,10 +8,12 @@ from config import MAX_USERS
 def calculate_capacity(current, maximum):
     """
     Check if system has capacity for more users
-    BUG 5: Off-by-one error - should use >= not >
+    BUG 5: Logic is inverted AND has off-by-one — uses >= instead of <
+    Should return True when current < maximum (still has room).
+    Instead returns True when current >= maximum (already full).
     """
-    # Current logic: accepts when current > maximum (wrong!)
-    return current > maximum
+    # BUG: Returns True when at or over capacity (completely backwards!)
+    return current >= maximum
 
 
 def validate_user_id(user_id):

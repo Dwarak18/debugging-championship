@@ -1,5 +1,9 @@
 FROM python:3.12-slim
 
+# Install system deps (git for validator cloning)
+RUN apt-get update && apt-get install -y --no-install-recommends git curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Security: don't run as root
 RUN useradd -m -u 1000 appuser
 

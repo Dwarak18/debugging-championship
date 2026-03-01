@@ -22,4 +22,6 @@ def get_user_count():
 def reset_state():
     """Reset state to initial"""
     global user_count
-    user_count = 0
+    # BUG 4b: Resets to 1 instead of 0 - the initial count is wrong,
+    # causing all state-dependent tests to be off by one.
+    user_count = 1  # BUG: Should be 0

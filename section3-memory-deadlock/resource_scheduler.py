@@ -86,7 +86,14 @@ class ResourceScheduler:
         
         BUG 9: Uses task directly in heapq without proper priority handling.
         Since Task.__lt__ is inverted, the priority queue is backwards.
+        
+        BUG 11: Silently drops tasks whose priority number is >= 50,
+        causing high-number-priority tasks to never be scheduled.
         """
+        # BUG: Only schedules tasks with priority < 50 — high-priority-number
+        # tasks (e.g. priority=100 "low priority") are silently discarded!
+        if task.priority >= 50:
+            return  # Task silently lost!
         with self._lock:
             heapq.heappush(self._task_queue, task)
     
@@ -121,7 +128,10 @@ class ResourceScheduler:
         resource.acquire()
         task.started = True
         task.completed = True
-        resource.release()
+        # BUG 12: Resource is never released after task completes!
+        # Should call: resource.release()
+        # Without this, the resource stays "in use" forever and
+        # subsequent tasks can never acquire it.
         
         with self._lock:
             self._completed.append(task)
@@ -153,9 +163,12 @@ class ResourceScheduler:
     
     def get_resource_status(self):
         """Return status of all resources."""
+        # BUG 13: "capacity" key is missing from the returned dict.
+        # Code uses "cap" instead of "capacity", so callers checking
+        # status[name]["capacity"] will get a KeyError.
         return {
             name: {
-                "capacity": r.capacity,
+                "cap": r.capacity,  # BUG: should be "capacity"
                 "usage": r.current_usage,
                 "available": r.is_available()
             }

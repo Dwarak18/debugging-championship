@@ -2,10 +2,10 @@ Traceback (most recent call last):
   File "payment_gateway.py", line 95, in <module>
     result = process_payment(payment)
   File "payment_gateway.py", line 45, in process_payment
-    if not validate_payment(payment):
-  File "payment_gateway.py", line 20, in validate_payment
+    if not check_input(payment):
+  File "payment_gateway.py", line 20, in check_input
     amount = payment['amount']
-TypeError: 'NoneType' object is not subscriptable
+TypeError: object is not subscriptable
 
 During handling of the above exception, another exception occurred:
 
@@ -15,10 +15,11 @@ Traceback (most recent call last):
 TypeError: '>' not supported between instances of 'str' and 'int'
 
 Additional context:
-- payment variable was None (received from external API)
-- config['API_TIMEOUT'] was loaded as string "30" from JSON
-- No null check before accessing payment['amount']
+- payment variable received from external API was invalid
+- config timeout value was loaded incorrectly from JSON
+- Missing input validation before accessing payment data
 - No type validation for configuration values
 
 CRITICAL LINE: payment_gateway.py, line 20
 SECONDARY ISSUE: payment_gateway.py, line 52
+

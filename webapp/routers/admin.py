@@ -19,7 +19,10 @@ from typing import Optional, List
 from webapp.core.security import hash_password
 from webapp.core.database import (
     create_student, list_students, deactivate_student,
-    reset_student_password, get_leaderboard, reset_leaderboard as _db_reset_lb
+    reset_student_password, get_leaderboard, reset_leaderboard as _db_reset_lb,
+    set_section_timer, reset_section_timer, get_all_section_timers,
+    update_github_username,
+    pause_section_timer, resume_section_timer, stop_section_timer,
 )
 from webapp.core.deps import require_admin
 
@@ -179,8 +182,83 @@ def deactivate(username: str):
     return {"message": f"{username} deactivated"}
 
 
+class GithubUsernameRequest(BaseModel):
+    github_username: str
+
+
+@router.put("/students/{username}/github", dependencies=[Depends(require_admin)])
+def set_github_username(username: str, body: GithubUsernameRequest):
+    """Set or update a student's GitHub username."""
+    update_github_username(username, body.github_username.strip())
+    return {"message": f"GitHub username set for {username}", "github_username": body.github_username.strip()}
+
+
 @router.delete("/leaderboard", dependencies=[Depends(require_admin)])
 def reset_leaderboard():
     """Wipe all scores (keeps student accounts)."""
     _db_reset_lb()
     return {"message": "Leaderboard reset"}
+
+
+# ── Timer Management ─────────────────────────────────────────────────────────
+
+class TimerRequest(BaseModel):
+    section:          int
+    duration_minutes: int  = 45
+    start_now:        bool = True
+
+
+@router.get("/timers", dependencies=[Depends(require_admin)])
+def list_timers():
+    """Return all section timer configurations."""
+    return {"timers": get_all_section_timers()}
+
+
+@router.post("/timers", dependencies=[Depends(require_admin)])
+def set_timer(body: TimerRequest):
+    """Start (or restart) the countdown timer for a section."""
+    if body.section not in (1, 2, 3, 4):
+        raise HTTPException(status_code=422, detail="section must be 1–4")
+    set_section_timer(
+        section=body.section,
+        duration_minutes=body.duration_minutes,
+        start_time=None if body.start_now else None,  # always NOW for now
+    )
+    return {"message": f"Timer started for section {body.section}",
+            "duration_minutes": body.duration_minutes}
+
+
+@router.delete("/timers/{section}", dependencies=[Depends(require_admin)])
+def clear_timer(section: int):
+    """Full reset — close section and lock downloads."""
+    if section not in (1, 2, 3, 4):
+        raise HTTPException(status_code=422, detail="section must be 1–4")
+    reset_section_timer(section)
+    return {"message": f"Timer reset for section {section}"}
+
+
+@router.patch("/timers/{section}/pause", dependencies=[Depends(require_admin)])
+def pause_timer(section: int):
+    """Freeze the countdown without closing the section."""
+    if section not in (1, 2, 3, 4):
+        raise HTTPException(status_code=422, detail="section must be 1–4")
+    pause_section_timer(section)
+    return {"message": f"Timer paused for section {section}"}
+
+
+@router.patch("/timers/{section}/resume", dependencies=[Depends(require_admin)])
+def resume_timer(section: int):
+    """Resume a paused timer from where it left off."""
+    if section not in (1, 2, 3, 4):
+        raise HTTPException(status_code=422, detail="section must be 1–4")
+    resume_section_timer(section)
+    return {"message": f"Timer resumed for section {section}"}
+
+
+@router.patch("/timers/{section}/stop", dependencies=[Depends(require_admin)])
+def stop_timer(section: int):
+    """Close submissions for a section (download still allowed)."""
+    if section not in (1, 2, 3, 4):
+        raise HTTPException(status_code=422, detail="section must be 1–4")
+    stop_section_timer(section)
+    return {"message": f"Section {section} stopped — submissions closed"}

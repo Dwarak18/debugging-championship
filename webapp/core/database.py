@@ -95,19 +95,36 @@ def init_db():
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_lb_total ON leaderboard(total_score DESC);
+
+                -- Migration: add github_username if the column doesn't exist yet
+                ALTER TABLE students ADD COLUMN IF NOT EXISTS github_username TEXT DEFAULT '';
+
+                -- Migration: add pause/resume support to timers
+                ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS paused_at       TIMESTAMPTZ;
+                ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS elapsed_seconds INTEGER DEFAULT 0;
+
+                CREATE TABLE IF NOT EXISTS section_timers (
+                    section          INTEGER PRIMARY KEY,
+                    duration_minutes INTEGER NOT NULL DEFAULT 45,
+                    start_time       TIMESTAMPTZ,
+                    is_active        BOOLEAN DEFAULT FALSE
+                );
+                INSERT INTO section_timers (section, duration_minutes)
+                VALUES (1,45),(2,40),(3,50),(4,35)
+                ON CONFLICT (section) DO NOTHING;
             """)
 
 
 # ── Student management ────────────────────────────────────────────────────────
 
-def create_student(username, password_hash, full_name="", email="", college="", team="") -> bool:
+def create_student(username, password_hash, full_name="", email="", college="", team="", github_username="") -> bool:
     try:
         with _conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """INSERT INTO students (username,password_hash,full_name,email,college,team)
-                       VALUES (%s,%s,%s,NULLIF(%s,''),  %s,%s)""",
-                    (username, password_hash, full_name, email, college, team)
+                    """INSERT INTO students (username,password_hash,full_name,email,college,team,github_username)
+                       VALUES (%s,%s,%s,NULLIF(%s,''),  %s,%s,%s)""",
+                    (username, password_hash, full_name, email, college, team, github_username)
                 )
         return True
     except psycopg2.errors.UniqueViolation:
@@ -144,6 +161,13 @@ def reset_student_password(username, new_hash):
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute("UPDATE students SET password_hash=%s WHERE username=%s", (new_hash, username))
+
+
+def update_github_username(username, github_username):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE students SET github_username=%s WHERE username=%s",
+                        (github_username, username))
 
 
 # ── Leaderboard ───────────────────────────────────────────────────────────────
@@ -199,3 +223,86 @@ def reset_leaderboard():
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute("TRUNCATE submissions, leaderboard")
+
+
+# ── Section Timers ────────────────────────────────────────────────────────────
+
+def set_section_timer(section: int, duration_minutes: int, start_time=None) -> None:
+    """Start (or restart) a section timer from zero."""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO section_timers
+                    (section, duration_minutes, start_time, is_active, paused_at, elapsed_seconds)
+                VALUES (%s, %s, COALESCE(%s, NOW()), TRUE, NULL, 0)
+                ON CONFLICT (section) DO UPDATE SET
+                    duration_minutes = EXCLUDED.duration_minutes,
+                    start_time       = COALESCE(%s, NOW()),
+                    is_active        = TRUE,
+                    paused_at        = NULL,
+                    elapsed_seconds  = 0
+            """, (section, duration_minutes, start_time, start_time))
+
+
+def pause_section_timer(section: int) -> None:
+    """Freeze the countdown clock (section stays open for download/validation)."""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            # Only pause if running (not already paused, is_active=TRUE)
+            cur.execute("""
+                UPDATE section_timers
+                SET paused_at = NOW()
+                WHERE section=%s AND is_active=TRUE AND paused_at IS NULL
+            """, (section,))
+
+
+def resume_section_timer(section: int) -> None:
+    """Resume a paused timer; absorb the paused gap into elapsed_seconds."""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE section_timers
+                SET elapsed_seconds = elapsed_seconds +
+                        EXTRACT(EPOCH FROM (NOW() - paused_at))::INTEGER,
+                    start_time      = NOW(),
+                    paused_at       = NULL
+                WHERE section=%s AND is_active=TRUE AND paused_at IS NOT NULL
+            """, (section,))
+
+
+def stop_section_timer(section: int) -> None:
+    """Stop accepting submissions but keep section open for download."""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE section_timers
+                SET is_active=FALSE,
+                    paused_at=NULL
+                WHERE section=%s
+            """, (section,))
+
+
+def reset_section_timer(section: int) -> None:
+    """Full reset — close section, lock download, clear all timer state."""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE section_timers
+                SET is_active=FALSE, start_time=NULL,
+                    paused_at=NULL, elapsed_seconds=0
+                WHERE section=%s
+            """, (section,))
+
+
+def get_section_timer(section: int) -> Optional[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("SELECT * FROM section_timers WHERE section=%s", (section,))
+            return _row(cur)
+
+
+def get_all_section_timers() -> List[Dict]:
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("SELECT * FROM section_timers ORDER BY section")
+            return _rows(cur)

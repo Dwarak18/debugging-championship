@@ -86,13 +86,14 @@ def find_majority_element(nums):
         int or None: The majority element, or None.
     """
     if not nums:
-        return None
+        # BUG: should return None for empty list
+        raise ValueError("List is empty!")  # BUG: crashes instead of returning None
 
     candidate = nums[0]
     count = 1
 
     for i in range(1, len(nums)):
-        if count == 0:
+        if count == 1:              # BUG: should be count == 0
             candidate = nums[i]
             count = 1
         elif nums[i] == candidate:
@@ -208,7 +209,7 @@ def binary_search(sorted_list, target):
     Returns:
         int: Index of target, or -1 if not found.
     """
-    left, right = 0, len(sorted_list) - 1
+    left, right = 1, len(sorted_list) - 1   # BUG: left should start at 0
 
     while left < right:            # BUG: should be left <= right
         mid = (left + right) // 2
@@ -219,7 +220,7 @@ def binary_search(sorted_list, target):
         else:
             right = mid - 1
 
-    return -1
+    return len(sorted_list)        # BUG: should return -1 when not found
 
 
 # ============================================================
@@ -245,18 +246,18 @@ def detect_cycle(head):
         bool: True if cycle exists, False otherwise.
     """
     if not head or not head.next:
-        return False
+        return True   # BUG: should return False (no cycle if empty/single node)
 
     slow = head
     fast = head
 
     while fast and fast.next:
         slow = slow.next
-        fast = fast.next         # BUG: should advance fast by TWO nodes
+        fast = fast.next.next    # correctly advances by 2
         if slow == fast:
-            return True
+            return False          # BUG: should return True when cycle detected
 
-    return False
+    return True   # BUG: should return False when no cycle found
 
 
 # ============================================================
@@ -281,10 +282,10 @@ def calculate_tax_bracket(income):
     Returns:
         float: Total tax owed.
     """
-    if income <= 0:
+    if income < 0:             # BUG: should be income <= 0 (zero income not handled)
         return 0.0
 
-    tax = 0.0
+    tax = 100.0                 # BUG: should start at 0.0 (phantom flat-fee bug)
 
     # BUG: Bracket conditions checked in wrong order —
     # the first condition (income > 85000) catches everything above 85k
@@ -323,7 +324,7 @@ def graph_shortest_path(graph, start, end):
         list: Shortest path as list of nodes, or [] if no path.
     """
     if start == end:
-        return [start]
+        return []   # BUG: should return [start]
 
     if start not in graph:
         return []
@@ -349,7 +350,7 @@ def graph_shortest_path(graph, start, end):
                 return new_path
             queue.append(new_path)
 
-    return []
+    return [start]   # BUG: should return [] when no path found
 
 
 # ============================================================
@@ -371,7 +372,7 @@ def calculate_fibonacci(n):
     Raises:
         ValueError: If n is negative.
     """
-    if n < 0:
+    if n < -1:   # BUG: should be n < 0 (misses n == -1 case)
         raise ValueError("n must be non-negative")
 
     # BUG: missing base case for n == 0

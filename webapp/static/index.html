@@ -4,6 +4,10 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Debugging Championship 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Ctext x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='white'%3E🔥%3C/text%3E%3C/svg%3E"/>
   <style>
     /* ── Reset & Variables ─────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,9 +47,12 @@
 
     /* ── Login Page ───────────────────────────────────────────────────── */
     #login-page {
-      display: flex; align-items: center; justify-content: center;
+      display: none; align-items: center; justify-content: center;
       min-height: 100vh;
       background: radial-gradient(ellipse at 60% 0%, #1e1b4b 0%, var(--bg) 60%);
+    }
+    #login-page.visible {
+      display: flex;
     }
     .login-box {
       background: var(--surface);
@@ -313,6 +320,111 @@
       #topbar     { padding: 0 12px; }
       .content    { padding: 12px; }
     }
+
+    /* ── Locked section ─────────────────────────────────────────────── */
+    .section-card.locked {
+      opacity: .55;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+    .lock-badge {
+      font-size: .75rem; color: var(--red);
+      margin-top: 8px; display: block;
+    }
+    .locked-btn {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+    /* ── GitHub username card ─────────────────────────────────────────── */
+    .github-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Timer badge ───────────────────────────────────────────────── */
+    .timer-badge {
+      font-size: .75rem; font-weight: 600; color: var(--yellow);
+      min-width: 100px; display: inline-block;
+    }
+    .timer-expired { color: var(--red) !important; }
+
+    /* ── Validator page ──────────────────────────────────────────── */
+    .val-info {
+      background: rgba(99,102,241,.07); border: 1px solid rgba(99,102,241,.2);
+      border-radius: var(--radius); padding: 14px 16px;
+      font-size: .85rem; color: var(--muted); margin-bottom: 18px; line-height: 1.6;
+    }
+    .val-info strong { color: var(--text); }
+
+    /* ── Toast notifications ──────────────────────────────────────── */
+    #toast-container {
+      position: fixed; top: 70px; right: 20px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 18px;
+      font-size: .85rem; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      display: flex; align-items: center; gap: 10px;
+      pointer-events: all; opacity: 0; transform: translateX(20px);
+      transition: opacity .25s, transform .25s;
+      max-width: 340px;
+    }
+    .toast.show  { opacity: 1; transform: none; }
+    .toast.t-ok  { border-left: 3px solid var(--green); }
+    .toast.t-err { border-left: 3px solid var(--red); }
+    .toast.t-info{ border-left: 3px solid var(--accent); }
+    .toast.t-warn{ border-left: 3px solid var(--yellow); }
+
+    /* ── Custom Modal ─────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      z-index: 10000; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .2s; pointer-events: none;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px 30px; max-width: 420px; width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      transform: scale(.95); transition: transform .2s;
+    }
+    .modal-overlay.open .modal-box { transform: scale(1); }
+    .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
+    .modal-box p  { font-size: .88rem; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+    /* ── Spinner ──────────────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      animation: spin .6s linear infinite; vertical-align: middle;
+    }
+
+    /* ── Page fade transition ─────────────────────────────────────── */
+    .page { animation: none; }
+    .page.active { animation: fadeIn .18s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* ── Section card meta row ────────────────────────────────────── */
+    .sec-meta-row {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      margin-top: 8px; font-size: .72rem; color: var(--muted);
+    }
+    .sec-meta-row span {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: 2px 7px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    #app-footer {
+      text-align: center; padding: 18px 24px;
+      font-size: .73rem; color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
@@ -360,10 +472,11 @@
     <div class="logo">DEBUG<span>CHAMP</span></div>
     <nav>
       <button class="nav-btn active" onclick="showPage('dashboard',this)">Dashboard</button>
-      <button class="nav-btn"       onclick="showPage('runner',this)">Run Tests</button>
-      <button class="nav-btn"       onclick="showPage('leaderboard',this);loadLeaderboard()">Leaderboard</button>
+      <button class="nav-btn"       onclick="showPage('runner',this)">📋 How to Submit</button>
+      <button class="nav-btn"       onclick="showPage('leaderboard',this);loadLeaderboard()">🏆 Leaderboard</button>
+      <button class="nav-btn"       onclick="showPage('validator',this);buildValidatorPicker()">⚡ Validate</button>
       <button class="nav-btn admin-only hidden" id="admin-nav"
-              onclick="showPage('admin',this);loadStudents()">⚡ Admin</button>
+              onclick="showPage('admin',this);loadStudents();loadAdminTimers()">⚙️ Admin</button>
     </nav>
     <div class="user-pill">
       <span id="topbar-name">—</span>
@@ -386,26 +499,72 @@
         <div class="stat-card"><div class="val" id="st-done">0/4</div><div class="lbl">Sections Attempted</div></div>
         <div class="stat-card"><div class="val" id="st-max">420</div><div class="lbl">Max Points</div></div>
       </div>
+
+      <!-- GitHub Username Card -->
+      <div class="github-card">
+        <div class="card-title">🔗 GitHub Username (Required for Validation)</div>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">
+          Enter your GitHub username. You can only validate submissions from
+          <strong>your own GitHub account</strong> (<code>https://github.com/&lt;your-username&gt;/…</code>).
+        </p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="github-username-input" type="text" placeholder="your-github-username"
+                 style="flex:1;min-width:200px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);
+                        color:var(--text);border-radius:8px;font-size:.88rem;outline:none;transition:border-color .2s"
+                 onfocus="this.style.borderColor='var(--accent)'"
+                 onblur="this.style.borderColor='var(--border)'"
+                 onkeydown="if(event.key==='Enter')saveGithubUsername()" />
+          <button class="btn-sm btn-accent" style="white-space:nowrap;padding:10px 18px"
+                  onclick="saveGithubUsername()">💾 Save</button>
+        </div>
+        <div id="github-username-msg" style="margin-top:8px;font-size:.8rem;min-height:20px"></div>
+      </div>
+
       <div class="card">
         <div class="card-title">Sections</div>
         <div class="sections-grid" id="sections-grid"></div>
       </div>
     </div>
 
-    <!-- ── Test Runner ─────────────────────────────────────────────────── -->
+    <!-- ── How to Submit (replaces server-side Test Runner) ──────────────── -->
     <div class="page" id="page-runner">
-      <h2 style="margin-bottom:18px;font-size:1.1rem">▶ Test Runner</h2>
-      <div class="runner-layout">
-        <div>
-          <div class="card-title">Select Section</div>
-          <div class="section-pick" id="sec-pick"></div>
-          <button class="run-btn" id="run-btn" onclick="runTests()">▶ Run Tests</button>
+      <h2 style="margin-bottom:18px;font-size:1.1rem">📋 How to Submit Your Fix</h2>
+      <div class="val-info" style="margin-bottom:20px">
+        <strong>Debugging is done entirely on your own machine.</strong>
+        The server never runs your local code — you must push your fixes to GitHub
+        and validate using the <strong>⚡ Validate</strong> tab.
+      </div>
+      <div class="sections-grid" style="gap:16px">
+        <div class="card">
+          <div class="card-title">Step 1 — Download</div>
+          <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">Download the section ZIP from the <strong>Dashboard</strong>. Extract and open the files in your editor.</p>
+          <span style="font-size:1.8rem">⬇</span>
         </div>
-        <div class="results-panel" id="results-panel">
-          <div style="color:var(--muted);text-align:center;padding-top:60px">
-            Select a section and click Run Tests
-          </div>
+        <div class="card">
+          <div class="card-title">Step 2 — Fix the Bugs</div>
+          <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">Read the <code>README.md</code> inside the section folder. Find &amp; fix the intentional bugs in the source files.</p>
+          <span style="font-size:1.8rem">🐛</span>
         </div>
+        <div class="card">
+          <div class="card-title">Step 3 — Run Tests Locally</div>
+          <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">Run <code>pytest sectionX-*/tests/ -v</code> in your terminal to verify your fixes pass before pushing.</p>
+          <span style="font-size:1.8rem">✅</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Step 4 — Push &amp; Validate</div>
+          <p style="font-size:.85rem;color:var(--muted);margin-bottom:14px">Push to <strong>your own GitHub repo</strong>, then go to <strong>⚡ Validate</strong> and paste the URL to get your score.</p>
+          <span style="font-size:1.8rem">🚀</span>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px;background:rgba(99,102,241,.07);border-color:rgba(99,102,241,.25)">
+        <div class="card-title">⚠ Important Rules</div>
+        <ul style="font-size:.85rem;color:var(--muted);line-height:2;padding-left:18px">
+          <li>You may only validate a repo that belongs to <strong>your own GitHub username</strong>.</li>
+          <li>Multiple submissions are allowed — only your <strong>highest score</strong> per section is kept.</li>
+          <li>Sections 2, 3 and 4 are <strong>locked</strong> until you pass Section 1.</li>
+          <li>Do <strong>not</strong> share your fixes with other participants during the event.</li>
+          <li>Each section has a <strong>timer deadline</strong> — validate before time runs out.</li>
+        </ul>
       </div>
     </div>
 
@@ -488,16 +647,86 @@
           <table class="admin-table">
             <thead>
               <tr><th>#</th><th>Username</th><th>Full Name</th><th>Email</th>
-                  <th>College</th><th>Team</th><th>Status</th><th>Last Login</th><th>Actions</th></tr>
+                  <th>College</th><th>Team</th><th>GitHub</th><th>Status</th><th>Last Login</th><th>Actions</th></tr>
             </thead>
-            <tbody id="students-body"><tr><td colspan="9" class="muted" style="padding:16px">Load…</td></tr></tbody>
+            <tbody id="students-body"><tr><td colspan="10" class="muted" style="padding:16px">Load…</td></tr></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Timer management -->
+      <div class="card" style="margin-top:16px">
+        <div class="flex between center" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">⏱ Section Timers &amp; Download Control</div>
+          <button class="refresh-btn" onclick="loadAdminTimers()">↻ Refresh</button>
+        </div>
+        <p class="muted" style="font-size:.8rem;margin-bottom:12px">
+          ▶ <strong>Start</strong> opens the section (unlocks download + validation). &nbsp;
+          ⏸ <strong>Pause</strong> freezes the clock (section stays open). &nbsp;
+          ⏹ <strong>Stop</strong> closes submissions (download still works). &nbsp;
+          ✖ <strong>Reset</strong> fully locks the section.
+        </p>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Section</th><th>Duration</th><th>Set Duration</th><th>Status</th><th>Time Remaining</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="timers-body"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+        <div id="timers-msg"></div>
+      </div>
+
+    </div>
+
+    <!-- ══ Validator ═══════════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-validator">
+      <h2 style="margin-bottom:14px;font-size:1.1rem">⚡ GitHub Validator</h2>
+      <div class="val-info">
+        Push your fixes to a <strong>public GitHub repo</strong>, paste the URL below, and we’ll
+        run the official tests against your code. Each section has its own deadline — check the
+        timer before submitting. <strong>Multiple submissions are allowed; only your highest score
+        per section is kept.</strong>
+      </div>
+      <div class="runner-layout">
+        <div>
+          <div class="card-title">Select Section</div>
+          <div class="section-pick" id="val-pick"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Repository URL</div>
+          <div class="form-group">
+            <label>Public GitHub Repo URL</label>
+            <input id="github-url" type="url"
+                   placeholder="https://github.com/yourname/debugging-championship"
+                   style="font-family:monospace"/>
+          </div>
+          <button class="run-btn" id="val-btn" onclick="runValidation()">🔍 Validate My Code</button>
+          <div id="val-result" style="margin-top:16px"></div>
         </div>
       </div>
     </div>
 
   </div><!-- /content -->
+  <div id="app-footer">Debugging Championship 2026 &nbsp;·&nbsp; All times UTC &nbsp;·&nbsp; Good luck! 🔥</div>
 </div><!-- /app -->
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Custom Confirm Modal -->
+<div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-body"></p>
+    <div class="modal-actions">
+      <button class="btn-sm" id="confirm-cancel"
+              style="background:var(--surface2);border:1px solid var(--border);color:var(--text)"
+              onclick="_confirmResolve(false)">Cancel</button>
+      <button class="btn-sm btn-danger" id="confirm-ok" onclick="_confirmResolve(true)">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
@@ -506,18 +735,33 @@
 var TOKEN   = localStorage.getItem("dc_token") || "";
 var USER    = {};
 try { USER  = JSON.parse(localStorage.getItem("dc_user") || "{}"); } catch {}
-var SEL_SEC = 1;
+// Always re-derive is_admin from the JWT so stale localStorage can't grant admin
+if (TOKEN) {
+  try {
+    let _b64 = TOKEN.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+    while (_b64.length % 4) _b64 += "=";
+    const _pl = JSON.parse(atob(_b64));
+    USER.is_admin = !!_pl.is_admin;
+  } catch { USER.is_admin = false; }
+} else { USER.is_admin = false; }
+var VAL_SEC = 1;
+var SECTION_TIMERS = {};
+// shape: { is_active, is_paused, download_unlocked,
+//          remaining_seconds (snapshot from server),
+//          snapshot_at_ms (when snapshot was taken), duration_minutes }
+var SECTION_SCORES = {1:0, 2:0, 3:0, 4:0}; // track scores for lock gating
+var GITHUB_USERNAME = localStorage.getItem("dc_github") || "";
 const SECTIONS = [
-  {id:1, title:"Multi-File Debugging", duration:45, points:100, diff:"⭐⭐⭐"},
+  {id:1, title:"Multi-File Debugging",    duration:45, points:100, diff:"⭐⭐⭐"},
   {id:2, title:"Broken Project Recovery", duration:40, points:100, diff:"⭐⭐⭐⭐"},
-  {id:3, title:"Memory & Deadlock", duration:50, points:100, diff:"⭐⭐⭐⭐⭐"},
-  {id:4, title:"Logical Tracing", duration:35, points:120, diff:"⭐⭐⭐⭐"},
+  {id:3, title:"Memory & Deadlock",       duration:50, points:100, diff:"⭐⭐⭐⭐⭐"},
+  {id:4, title:"Logical Tracing",         duration:35, points:120, diff:"⭐⭐⭐⭐"},
 ];
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 window.onload = () => {
   if (TOKEN && USER.username) { showApp(); }
-  else { document.getElementById("login-page").style.display = "flex"; }
+  else { document.getElementById("login-page").classList.add("visible"); }
 };
 
 // ── Auth ───────────────────────────────────────────────────────────────────
@@ -544,7 +788,7 @@ async function doLogin() {
     } catch {}
     localStorage.setItem("dc_token", TOKEN);
     localStorage.setItem("dc_user", JSON.stringify(USER));
-    document.getElementById("login-page").style.display = "none";
+    document.getElementById("login-page").classList.remove("visible");
     showApp();
   } catch(e) { setMsg(msg, "Network error: " + e.message, "red"); }
   finally    { btn.disabled = false; btn.textContent = "Sign In"; }
@@ -554,8 +798,10 @@ function doLogout() {
   TOKEN = ""; USER = {};
   localStorage.removeItem("dc_token");
   localStorage.removeItem("dc_user");
-  document.getElementById("app").style.display   = "none";
-  document.getElementById("login-page").style.display = "flex";
+  localStorage.removeItem("dc_github");
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login-page").classList.add("visible");
+  document.getElementById("l-user").value = "";
   document.getElementById("l-pass").value = "";
   document.getElementById("login-msg").textContent = "";
 }
@@ -568,16 +814,114 @@ function showApp() {
   if (USER.is_admin)
     document.getElementById("admin-nav").classList.remove("hidden");
   buildDashboard();
-  buildRunnerPicker();
   loadDashboardScores();
+  loadTimers().then(startTimerTick);
+  // Pre-fill GitHub username if saved
+  const ghInput = document.getElementById("github-username-input");
+  if (ghInput && GITHUB_USERNAME) {
+    ghInput.value = GITHUB_USERNAME;
+    document.getElementById("github-username-msg").textContent =
+      `✅ Saved: ${GITHUB_USERNAME}`;
+    document.getElementById("github-username-msg").style.color = "var(--green)";
+  }
+}
+
+// ── GitHub Username ────────────────────────────────────────────────────────
+function saveGithubUsername() {
+  const inp = document.getElementById("github-username-input");
+  const msg = document.getElementById("github-username-msg");
+  const val = inp.value.trim();
+  if (!val) {
+    msg.style.color = "var(--red)";
+    msg.textContent = "❌ Please enter a GitHub username.";
+    return;
+  }
+  if (!/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,37}[a-zA-Z0-9])?$/.test(val)) {
+    msg.style.color = "var(--red)";
+    msg.textContent = "❌ Invalid GitHub username. Use only letters, numbers, and hyphens.";
+    return;
+  }
+  GITHUB_USERNAME = val;
+  localStorage.setItem("dc_github", val);
+  msg.style.color = "var(--green)";
+  msg.textContent = `✅ Saved: ${val}`;
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────
 function showPage(name, btn) {
+  if (name === 'admin' && !USER.is_admin) {
+    showToast("Admin access only", "error");
+    return;
+  }
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
   document.getElementById("page-"+name).classList.add("active");
   if (btn) btn.classList.add("active");
+}
+
+// ── Timers ─────────────────────────────────────────────────────────────────
+async function loadTimers() {
+  try {
+    const res  = await api("/api/timers/status");
+    if (!res.ok) return;
+    const data = await res.json();
+    SECTION_TIMERS = {};
+    (data.timers || []).forEach(t => {
+      SECTION_TIMERS[t.section] = {
+        is_active:         t.is_active,
+        is_paused:         t.is_paused || false,
+        download_unlocked: t.download_unlocked || false,
+        remaining_seconds: t.remaining_seconds ?? null,
+        snapshot_at_ms:    Date.now(),
+        duration_minutes:  t.duration_minutes,
+      };
+    });
+    if (document.getElementById("sections-grid")) renderSectionsGrid();
+  } catch {}
+}
+
+function startTimerTick() {
+  setInterval(() => {
+    Object.entries(SECTION_TIMERS).forEach(([sec, timer]) => {
+      const ids = [`sec-timer-${sec}`, `val-timer-${sec}`];
+      let remaining = null;
+      if (timer.is_active && timer.remaining_seconds !== null) {
+        if (timer.is_paused) {
+          remaining = timer.remaining_seconds;
+        } else {
+          const elapsed = Math.floor((Date.now() - timer.snapshot_at_ms) / 1000);
+          remaining = Math.max(0, timer.remaining_seconds - elapsed);
+        }
+      }
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (!timer.is_active || remaining === null) {
+          el.textContent = ""; el.className = "timer-badge";
+        } else if (remaining <= 0) {
+          el.textContent = "⛔ Expired";
+          el.className   = "timer-badge timer-expired";
+        } else if (timer.is_paused) {
+          const h = Math.floor(remaining/3600), m = Math.floor((remaining%3600)/60), s = remaining%60;
+          el.textContent = `⏸ ${h?h+'h ':''}${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+          el.className = "timer-badge"; el.style.color = "var(--muted)";
+        } else {
+          const h = Math.floor(remaining/3600), m = Math.floor((remaining%3600)/60), s = remaining%60;
+          el.textContent = `⏱ ${h?h+'h ':''}${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+          el.className = "timer-badge";
+          el.style.color = remaining < 300 ? "var(--red)" : "var(--yellow)";
+        }
+      });
+    });
+  }, 1000);
+}
+
+function isSectionExpired(secId) {
+  const t = SECTION_TIMERS[secId];
+  if (!t || !t.is_active || t.remaining_seconds === null) return false;
+  if (t.is_paused) return t.remaining_seconds <= 0;
+  const elapsed = Math.floor((Date.now() - t.snapshot_at_ms) / 1000);
+  return (t.remaining_seconds - elapsed) <= 0;
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
@@ -585,16 +929,50 @@ function buildDashboard() {
   document.getElementById("wb-name").textContent = USER.full_name || USER.username;
   document.getElementById("wb-meta").textContent =
     [USER.college, USER.team].filter(Boolean).join(" · ") || "Participant";
+  renderSectionsGrid();
+}
 
+function renderSectionsGrid() {
   const grid = document.getElementById("sections-grid");
-  grid.innerHTML = SECTIONS.map(s => `
-    <div class="section-card" onclick="gotoRunner(${s.id})">
+  if (!grid) return;
+  const s1Done = SECTION_SCORES[1] > 0;
+  const s2Done = SECTION_SCORES[2] > 0;
+  const s3Done = SECTION_SCORES[3] > 0;
+  grid.innerHTML = SECTIONS.map(s => {
+    // Section unlock (for validation)
+    const isLocked = s.id > 1 && !s1Done;
+    // Download locked unless admin has started (opened) that section
+    const timerState = SECTION_TIMERS[s.id];
+    const dlLocked = s.id > 1 && !(timerState && timerState.download_unlocked);
+    return `
+    <div class="section-card${isLocked ? ' locked' : ''}">
       <div class="sec-header">
-        <h3>Section ${s.id}: ${s.title}</h3>
-        <span class="sec-badge" id="sd-badge-${s.id}">—</span>
+        <h3>${isLocked ? '🔒 ' : ''}Section ${s.id}: ${s.title}</h3>
+        <span class="sec-badge" id="sd-badge-${s.id}">0 pts</span>
       </div>
-      <div class="meta">${s.diff} &nbsp;|&nbsp; ⏱ ${s.duration} min &nbsp;|&nbsp; 🏆 ${s.points} pts</div>
-    </div>`).join("");
+      <div class="sec-meta-row">
+        <span>⏱ ${s.duration} min</span>
+        <span>🏆 ${s.points} pts</span>
+        <span>${s.diff}</span>
+        ${!isLocked ? `<span id="sec-timer-${s.id}" class="timer-badge"></span>` : ''}
+      </div>
+      ${isLocked
+        ? `<span class="lock-badge">Complete &amp; pass Section 1 to unlock this section</span>`
+        : `<div style="display:flex;justify-content:flex-end;margin-top:10px">
+             ${dlLocked
+               ? `<button class="btn-sm" disabled title="Complete the previous section first"
+                    style="padding:4px 12px;font-size:.73rem;opacity:.45;cursor:not-allowed;
+                           background:var(--surface2);border:1px solid var(--border);
+                           color:var(--muted);border-radius:6px">🔒 Locked</button>`
+               : `<button class="btn-sm"
+                    style="padding:4px 12px;font-size:.73rem;background:var(--surface2);border:1px solid var(--border);
+                           color:var(--text);border-radius:6px;cursor:pointer"
+                    onclick="downloadSection(${s.id})">⬇ Download</button>`
+             }
+           </div>`
+      }
+    </div>`;
+  }).join("");
 }
 
 async function loadDashboardScores() {
@@ -608,66 +986,115 @@ async function loadDashboardScores() {
     document.getElementById("st-rank").textContent  = rank ? `#${rank}` : "—";
     let done = 0;
     [1,2,3,4].forEach(i=>{
-      const sc = me[`section${i}`] || 0;
-      if (sc > 0) { done++;
-        const b = document.getElementById(`sd-badge-${i}`);
-        if (b) { b.textContent = `${sc} pts`; b.classList.add("done"); }
-      }
+      SECTION_SCORES[i] = me[`section${i}`] || 0;
+      if (SECTION_SCORES[i] > 0) done++;
     });
     document.getElementById("st-done").textContent = `${done}/4`;
+    renderSectionsGrid();  // re-render with updated lock state
+    // Re-apply score badges after grid rebuild
+    [1,2,3,4].forEach(i=>{
+      const sc = SECTION_SCORES[i];
+      const b  = document.getElementById(`sd-badge-${i}`);
+      if (b) { b.textContent = `${sc} pts`; if (sc>0) b.classList.add("done"); }
+    });
   } catch {}
 }
 
-function gotoRunner(secId) {
-  SEL_SEC = secId;
-  showPage("runner", document.querySelectorAll(".nav-btn")[1]);
-  document.querySelectorAll(".sec-pick-btn").forEach((b,i)=>{
-    b.classList.toggle("active", i+1===secId);
-  });
+function showLockError(secId) {
+  showToast(`🔒 Section ${secId} is locked — pass Section 1 first.`, 'warn');
 }
 
-// ── Test Runner ────────────────────────────────────────────────────────────
-function buildRunnerPicker() {
-  document.getElementById("sec-pick").innerHTML = SECTIONS.map(s => `
-    <button class="sec-pick-btn ${s.id===1?'active':''}"
-            onclick="selSection(${s.id},this)">
-      <strong>Section ${s.id}: ${s.title}</strong>
-      <div class="pts">⏱ ${s.duration} min · 🏆 ${s.points} pts</div>
-    </button>`).join("");
+// ── Download ───────────────────────────────────────────────────────────────
+function downloadSection(secId) {
+  const url = `/api/download/section/${secId}?token=${encodeURIComponent(TOKEN)}`;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `section${secId}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
-function selSection(id, el) {
-  SEL_SEC = id;
-  document.querySelectorAll(".sec-pick-btn").forEach(b=>b.classList.remove("active"));
+// ── Validator ──────────────────────────────────────────────────────────────
+function buildValidatorPicker() {
+  const s1Done = SECTION_SCORES[1] > 0;
+  document.getElementById("val-pick").innerHTML = SECTIONS.map(s => {
+    const locked = s.id > 1 && !s1Done;
+    return `
+    <button class="sec-pick-btn ${s.id===1?'active':''} ${locked?'locked-btn':''}"
+            onclick="${locked ? `showLockError(${s.id})` : `selValSection(${s.id},this)`}">
+      <strong>${locked?'🔒 ':''}Section ${s.id}: ${s.title}</strong>
+      <div class="pts">${locked
+        ? '<span style="color:var(--red);font-size:.72rem">🔒 Complete Section 1 to unlock</span>'
+        : `🏆 ${s.points} pts`}</div>
+      <div class="pts" id="val-timer-${s.id}" style="color:var(--yellow)"></div>
+    </button>`;
+  }).join("");
+  VAL_SEC = 1;
+}
+
+function selValSection(id, el) {
+  if (id > 1 && SECTION_SCORES[1] <= 0) { showLockError(id); return; }
+  VAL_SEC = id;
+  document.querySelectorAll("#val-pick .sec-pick-btn").forEach(b=>b.classList.remove("active"));
   el.classList.add("active");
 }
 
-async function runTests() {
-  const btn = document.getElementById("run-btn");
-  const panel = document.getElementById("results-panel");
-  btn.disabled = true; btn.textContent = "Running…";
-  panel.innerHTML = `<div style="color:var(--muted);text-align:center;padding-top:60px">
-    ⏳ Running pytest for Section ${SEL_SEC}…</div>`;
-  try {
-    const res  = await api("/api/run/section","POST",{section:SEL_SEC});
-    const data = await res.json();
-    if (!res.ok) { panel.innerHTML=`<div class="fail">${data.detail}</div>`; return; }
+async function runValidation() {
+  const url    = document.getElementById("github-url").value.trim();
+  const panel  = document.getElementById("val-result");
+  const btn    = document.getElementById("val-btn");
 
+  // ── Require GitHub username ────────────────────────────────────────────
+  if (!GITHUB_USERNAME) {
+    panel.innerHTML = `<div class="result-err">
+      ❌ <strong>GitHub username not set.</strong><br>
+      Go to the <strong>Dashboard</strong> and save your GitHub username first.
+    </div>`;
+    return;
+  }
+
+  if (!url) { panel.innerHTML=`<div class="result-err">❌ Enter a GitHub repository URL.</div>`; return; }
+  if (!url.startsWith("https://")) {
+    panel.innerHTML=`<div class="result-err">❌ Enter a valid URL starting with <code>https://</code></div>`; return;
+  }
+
+  // ── Verify repo belongs to the declared GitHub username ───────────────
+  const expectedPrefix = `https://github.com/${GITHUB_USERNAME}/`;
+  if (!url.toLowerCase().startsWith(expectedPrefix.toLowerCase())) {
+    panel.innerHTML = `<div class="result-err">
+      ❌ <strong>Repository owner mismatch.</strong><br>
+      Your GitHub username is <strong>${escHtml(GITHUB_USERNAME)}</strong>.<br>
+      The URL must start with <code>${escHtml(expectedPrefix)}</code>
+    </div>`;
+    return;
+  }
+
+  if (isSectionExpired(VAL_SEC)) {
+    panel.innerHTML = `<div class="result-err">⛔ Section ${VAL_SEC} time has expired. No more submissions accepted.</div>`;
+    return;
+  }
+  btn.disabled = true; btn.textContent = "Validating…";
+  panel.innerHTML = `<div style="color:var(--muted);padding:20px;text-align:center">
+    ⏳ Cloning repo and running tests for Section ${VAL_SEC}…<br>
+    <small class="muted" style="font-size:.78rem">This may take up to 60 seconds</small></div>`;
+  try {
+    const res  = await api("/api/validate/section","POST",{section:VAL_SEC, github_url:url});
+    const data = await res.json();
+    if (!res.ok) {
+      panel.innerHTML = `<div class="result-err">❌ ${data.detail}</div>`;
+      return;
+    }
     const pct = data.total ? Math.round(data.passed/data.total*100) : 0;
     panel.innerHTML = `
+      <div class="result-ok" style="margin-bottom:14px;padding:14px 16px;border-radius:8px">
+        ✅ Validation complete — Score: <strong>${data.score}/${data.max_score}</strong>
+        &nbsp;<span class="muted" style="font-size:.8rem">(only your highest score is kept)</span>
+      </div>
       <div class="score-summary">
-        <div class="score-box">
-          <div class="big" style="color:var(--accent)">${data.score}</div>
-          <div class="tiny">Score / ${data.max_score}</div>
-        </div>
-        <div class="score-box">
-          <div class="big pass">${data.passed}</div>
-          <div class="tiny">Passed / ${data.total}</div>
-        </div>
-        <div class="score-box">
-          <div class="big">${data.duration_seconds}s</div>
-          <div class="tiny">Duration</div>
-        </div>
+        <div class="score-box"><div class="big" style="color:var(--accent)">${data.score}</div><div class="tiny">Score / ${data.max_score}</div></div>
+        <div class="score-box"><div class="big pass">${data.passed}</div><div class="tiny">Passed / ${data.total}</div></div>
+        <div class="score-box"><div class="big">${data.duration_seconds}s</div><div class="tiny">Duration</div></div>
       </div>
       <div class="flex between center mt8" style="margin-bottom:6px">
         <span style="font-size:.8rem;color:var(--muted)">${pct}% pass rate</span>
@@ -676,21 +1103,20 @@ async function runTests() {
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
       <div class="test-list mt16">
         ${data.results.map(t=>`
-          <div class="test-row">
+          <div class="test-row" style="flex-wrap:wrap">
             <span class="test-dot ${t.outcome==='passed'?'dot-pass':'dot-fail'}"></span>
             <span style="flex:1">${t.name}</span>
-            <span class="muted" style="font-size:.75rem">${t.duration}s</span>
+            <span class="muted" style="font-size:.75rem">${(t.duration||0).toFixed(3)}s</span>
+            ${t.outcome!=='passed'&&t.error
+              ? `<div style="width:100%;padding:5px 18px;margin-top:2px;font-size:.72rem;color:var(--red);
+                            font-family:monospace;white-space:pre-wrap;overflow-x:auto;
+                            background:rgba(239,68,68,.05);border-left:2px solid var(--red)">&#10060; ${escHtml(t.error)}</div>`
+              : ''}
           </div>`).join("")}
       </div>`;
-
-    // Auto-submit score
-    await api("/api/leaderboard/submit","POST",{
-      section:data.section, score:data.score,
-      passed_tests:data.passed, total_tests:data.total, time_taken:data.duration_seconds
-    });
     loadDashboardScores();
-  } catch(e) { panel.innerHTML=`<div class="fail">Error: ${e.message}</div>`; }
-  finally    { btn.disabled=false; btn.textContent="▶ Run Tests"; }
+  } catch(e) { panel.innerHTML=`<div class="result-err">❌ Network error: ${e.message}</div>`; }
+  finally    { btn.disabled=false; btn.textContent="🔍 Validate My Code"; }
 }
 
 // ── Leaderboard ────────────────────────────────────────────────────────────
@@ -719,7 +1145,10 @@ async function loadLeaderboard() {
         <td><strong>${r.total_score}</strong></td>
       </tr>`;
     }).join("");
-  } catch { tbody.innerHTML=`<tr><td colspan="8" class="fail">Failed to load</td></tr>`; }
+  } catch (e) {
+    tbody.innerHTML=`<tr><td colspan="8" class="fail" style="padding:16px">⚠ Failed to load leaderboard. Please refresh.</td></tr>`;
+    console.error('Leaderboard error:', e);
+  }
 }
 
 // ── Admin ──────────────────────────────────────────────────────────────────
@@ -779,6 +1208,17 @@ async function loadStudents() {
       <td>${s.email||"—"}</td>
       <td>${s.college||"—"}</td>
       <td>${s.team||"—"}</td>
+      <td>
+        <div style="display:flex;gap:4px;align-items:center">
+          <input id="gh-inp-${s.username}" type="text" value="${escHtml(s.github_username||'')}" placeholder="github-user"
+            style="width:110px;padding:3px 6px;background:var(--bg);border:1px solid var(--border);
+                   color:var(--text);border-radius:5px;font-size:.75rem;outline:none"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter')adminSetGithub('${s.username}')"/>
+          <button class="btn-sm btn-accent" style="padding:2px 7px;font-size:.7rem"
+                  onclick="adminSetGithub('${s.username}')">✓</button>
+        </div>
+      </td>
       <td><span class="status-badge ${s.is_active?'active-badge':'inactive-badge'}">${s.is_active?"Active":"Inactive"}</span></td>
       <td class="muted">${s.last_login?s.last_login.replace("T"," ").slice(0,16):"Never"}</td>
       <td>
@@ -788,18 +1228,141 @@ async function loadStudents() {
     </tr>`).join("");
 }
 
+async function adminSetGithub(username) {
+  const inp = document.getElementById(`gh-inp-${username}`);
+  if (!inp) return;
+  const gh = inp.value.trim();
+  const res  = await api(`/api/admin/students/${username}/github`, "PUT", { github_username: gh });
+  const data = await res.json();
+  if (res.ok) showToast(`✅ GitHub set for ${username}`, 'ok');
+  else        showToast(`❌ ${data.detail}`, 'err');
+}
+
 async function deactivateStudent(u) {
-  if (!confirm(`Deactivate ${u}?`)) return;
+  const ok = await showConfirm(`Deactivate ${u}?`, `This will prevent "${u}" from logging in.`);
+  if (!ok) return;
   await api(`/api/admin/students/${u}`,"DELETE");
+  showToast(`✅ ${u} deactivated`, 'ok');
   loadStudents();
 }
 
 async function resetLeaderboard() {
-  if (!confirm("Reset ALL scores? This cannot be undone.")) return;
+  const ok = await showConfirm('Reset ALL scores?', 'This will wipe every participant score and cannot be undone.');
+  if (!ok) return;
   const res  = await api("/api/admin/leaderboard","DELETE");
   const data = await res.json();
-  alert(data.message || "Done");
+  showToast(data.message || 'Scores reset', 'ok');
   loadStudents();
+}
+
+// ── Admin Timers ───────────────────────────────────────────────────────────
+async function loadAdminTimers() {
+  const tbody = document.getElementById("timers-body");
+  if (!tbody) return;
+  const res  = await api("/api/admin/timers");
+  const data = await res.json();
+  tbody.innerHTML = (data.timers || []).map(t => {
+    const elapsed   = t.elapsed_seconds || 0;
+    const totalSecs = t.duration_minutes * 60;
+    const isPaused  = t.is_active && t.paused_at;
+    const isRunning = t.is_active && !t.paused_at;
+    let remaining   = null;
+    if (t.is_active && t.start_time) {
+      if (isPaused) {
+        remaining = Math.max(0, totalSecs - elapsed);
+      } else {
+        const runSecs = Math.floor((Date.now() - new Date(t.start_time).getTime()) / 1000);
+        remaining = Math.max(0, totalSecs - elapsed - runSecs);
+      }
+    }
+    function fmtTime(s) {
+      if (s === null) return '—';
+      const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
+      return (h?h+'h ':'')+String(m).padStart(2,'0')+'m '+String(ss).padStart(2,'0')+'s';
+    }
+    const notStarted = !t.is_active && !t.start_time;
+    let statusHtml;
+    if (notStarted)                      statusHtml = `<span class="muted">○ Not started</span>`;
+    else if (isPaused)                   statusHtml = `<span style="color:var(--yellow)">⏸ Paused</span>`;
+    else if (isRunning && remaining > 0) statusHtml = `<span class="pass">▶ Running</span>`;
+    else if (isRunning)                  statusHtml = `<span class="fail">⛔ Expired</span>`;
+    else                                 statusHtml = `<span class="muted">⏹ Stopped</span>`;
+    const timeHtml = remaining !== null
+      ? `<span style="color:${remaining<60?'var(--red)':remaining<300?'var(--yellow)':'var(--green)'}">${fmtTime(remaining)}</span>`
+      : `<span class="muted">—</span>`;
+    const bs = "padding:3px 8px;font-size:.71rem;margin:1px";
+    const canStart  = !t.is_active;
+    const canPause  = !!isRunning;
+    const canResume = !!(isPaused);
+    const canStop   = !!t.is_active;
+    const dimBtn    = `${bs};opacity:.3;cursor:not-allowed`;
+    return `<tr>
+      <td><strong>Section ${t.section}</strong><div style="font-size:.7rem;color:var(--muted)">${t.duration_minutes} min</div></td>
+      <td><input id="timer-dur-${t.section}" type="number" value="${t.duration_minutes}"
+           style="width:60px;padding:3px 6px;background:var(--bg);border:1px solid var(--border);
+                  color:var(--text);border-radius:5px;font-size:.8rem" min="1" max="240"/></td>
+      <td>${statusHtml}</td>
+      <td>${timeHtml}</td>
+      <td style="white-space:nowrap">
+        ${canStart  ?`<button class="btn-sm btn-accent" style="${bs}" onclick="startTimer(${t.section})">▶ Start</button>`
+                    :`<button class="btn-sm" style="${dimBtn}" disabled>▶ Start</button>`}
+        ${canPause  ?`<button class="btn-sm" style="${bs};background:var(--yellow);color:#111" onclick="pauseTimer(${t.section})">⏸ Pause</button>`
+                    :`<button class="btn-sm" style="${dimBtn}" disabled>⏸ Pause</button>`}
+        ${canResume ?`<button class="btn-sm btn-accent" style="${bs}" onclick="resumeTimer(${t.section})">▶▶ Resume</button>`
+                    :`<button class="btn-sm" style="${dimBtn}" disabled>▶▶ Resume</button>`}
+        ${canStop   ?`<button class="btn-sm" style="${bs};background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="stopTimer(${t.section})">⏹ Stop</button>`
+                    :`<button class="btn-sm" style="${dimBtn}" disabled>⏹ Stop</button>`}
+        <button class="btn-sm btn-danger" style="${bs}" onclick="resetTimer(${t.section})">✖ Reset</button>
+      </td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="5" class="muted" style="padding:12px">No timer data</td></tr>`;
+}
+
+async function startTimer(section) {
+  const inp  = document.getElementById(`timer-dur-${section}`);
+  const mins = inp ? parseInt(inp.value) : 45;
+  if (!mins || mins < 1) { showAdminMsg("timers-msg","❌ Duration must be ≥ 1 min","err"); return; }
+  const res  = await api("/api/admin/timers","POST",{section, duration_minutes:mins, start_now:true});
+  const data = await res.json();
+  if (res.ok) {
+    showAdminMsg("timers-msg",`✅ Section ${section} started (${mins} min) — download unlocked`,"ok");
+    loadTimers(); loadAdminTimers();
+  } else { showAdminMsg("timers-msg","❌ "+data.detail,"err"); }
+}
+
+async function pauseTimer(section) {
+  const res  = await api(`/api/admin/timers/${section}/pause`,"PATCH");
+  const data = await res.json();
+  if (res.ok) { showAdminMsg("timers-msg",`⏸ Section ${section} paused`,"ok"); loadTimers(); loadAdminTimers(); }
+  else showAdminMsg("timers-msg","❌ "+(data.detail||'Error'),"err");
+}
+
+async function resumeTimer(section) {
+  const res  = await api(`/api/admin/timers/${section}/resume`,"PATCH");
+  const data = await res.json();
+  if (res.ok) { showAdminMsg("timers-msg",`▶ Section ${section} resumed`,"ok"); loadTimers(); loadAdminTimers(); }
+  else showAdminMsg("timers-msg","❌ "+(data.detail||'Error'),"err");
+}
+
+async function stopTimer(section) {
+  const ok = await showConfirm(`Stop Section ${section}?`,
+    'Closes submissions. Download stays available. Use Reset to fully lock the section.');
+  if (!ok) return;
+  const res  = await api(`/api/admin/timers/${section}/stop`,"PATCH");
+  const data = await res.json();
+  if (res.ok) { showAdminMsg("timers-msg",`⏹ Section ${section} stopped`,"ok"); loadTimers(); loadAdminTimers(); }
+  else showAdminMsg("timers-msg","❌ "+(data.detail||'Error'),"err");
+}
+
+async function resetTimer(section) {
+  const ok = await showConfirm(`Reset Section ${section}?`,
+    'Fully locks the section — download disabled and submissions closed.');
+  if (!ok) return;
+  const res = await api(`/api/admin/timers/${section}`,"DELETE");
+  if (res.ok) {
+    showAdminMsg("timers-msg",`✖ Section ${section} fully reset — download locked`,"ok");
+    loadTimers(); loadAdminTimers(); renderSectionsGrid();
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -818,9 +1381,18 @@ function setMsg(el, txt, color) {
 }
 function showAdminMsg(id, txt, type) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.className = `result-banner ${type==="ok"?"result-ok":"result-err"}`;
   el.textContent = txt;
   setTimeout(()=>{ el.textContent=""; el.className=""; }, 5000);
+}
+function escHtml(s) {
+  if (!s) return "";
+  return String(s)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
 }
 
 // Auto-refresh leaderboard every 30s when on that page
@@ -828,6 +1400,45 @@ setInterval(()=>{
   if (document.getElementById("page-leaderboard").classList.contains("active"))
     loadLeaderboard();
 }, 30000);
+// Auto-refresh timers every 60s
+setInterval(loadTimers, 60000);
+
+// ── Toast System ──────────────────────────────────────────────────────────
+function showToast(msg, type='info', duration=3500) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const icons = { ok:'✅', err:'❌', warn:'⚠️', info:'ℹ️' };
+  const toast = document.createElement('div');
+  toast.className = `toast t-${type}`;
+  toast.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ── Custom Confirm Modal ───────────────────────────────────────────────────
+var _confirmResolve = null;
+function showConfirm(title, body='') {
+  return new Promise(resolve => {
+    _confirmResolve = val => {
+      document.getElementById('confirm-modal').classList.remove('open');
+      _confirmResolve = null;
+      resolve(val);
+    };
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-body').textContent  = body;
+    document.getElementById('confirm-modal').classList.add('open');
+  });
+}
+// Close modal on overlay click
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('confirm-modal')?.addEventListener('click', e => {
+    if (e.target.id === 'confirm-modal') _confirmResolve && _confirmResolve(false);
+  });
+});
 </script>
 </body>
 </html>

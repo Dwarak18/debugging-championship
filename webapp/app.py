@@ -9,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from webapp.routers import auth, leaderboard, runner, info, admin
+from webapp.routers.validator import router as validator_router
+from webapp.routers.download import router as download_router
 from webapp.core.config import settings
 from webapp.core.database import init_db
 
@@ -42,6 +44,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router,        prefix="/api/auth",        tags=["Auth"])
     app.include_router(leaderboard.router, prefix="/api/leaderboard", tags=["Leaderboard"])
     app.include_router(runner.router,      prefix="/api/run",         tags=["Test Runner"])
+    app.include_router(validator_router,   prefix="/api/validate",    tags=["Validator"])
+    app.include_router(download_router,    prefix="/api/download",    tags=["Download"])
     app.include_router(info.router,        prefix="/api",             tags=["Info"])
     app.include_router(admin.router,       prefix="/api/admin",       tags=["Admin"])
 

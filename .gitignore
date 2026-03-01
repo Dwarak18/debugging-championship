@@ -18,3 +18,16 @@ webapp/data/
 
 # Docker
 *.log
+nginx/certs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test reports
+*.json.report
+pytest-report*.json

@@ -59,11 +59,15 @@ class ThreadManager:
         # Instead, blocks forever:
         self._locks[lock_name].acquire()  # No timeout!
         
-        # Track which locks this thread holds
-        with self._manager_lock:
-            if thread_id not in self._held_locks:
-                self._held_locks[thread_id] = []
-            self._held_locks[thread_id].append(lock_name)
+        # BUG: Held lock tracking is missing!
+        # The code never records which locks this thread holds, so
+        # get_held_locks() always returns empty and check_lock_order()
+        # can never detect ordering violations.
+        # Missing:
+        # with self._manager_lock:
+        #     if thread_id not in self._held_locks:
+        #         self._held_locks[thread_id] = []
+        #     self._held_locks[thread_id].append(lock_name)
         
         return True
     

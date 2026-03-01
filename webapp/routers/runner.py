@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from webapp.core.config import settings
-from webapp.core.deps import get_current_user
+from webapp.core.deps import get_current_user, require_admin
 
 router = APIRouter()
 
@@ -45,7 +45,7 @@ class TestResult(BaseModel):
 
 
 @router.post("/section", response_model=TestResult)
-def run_section(body: RunRequest, user: dict = Depends(get_current_user)):
+def run_section(body: RunRequest, user: dict = Depends(require_admin)):
     """
     Run pytest for the requested section inside the repo.
     Returns pass/fail breakdown and computed score.
@@ -53,12 +53,9 @@ def run_section(body: RunRequest, user: dict = Depends(get_current_user)):
     if body.section not in SECTION_TESTS:
         raise HTTPException(status_code=422, detail="section must be 1–4")
 
-    test_path = os.path.join(
-        settings.REPO_ROOT, "..", "debugging-championship",
-        SECTION_TESTS[body.section],
+    test_path = os.path.normpath(
+        os.path.join(settings.REPO_ROOT, SECTION_TESTS[body.section])
     )
-    # Resolve cleanly
-    test_path = os.path.normpath(test_path)
 
     if not os.path.isdir(test_path):
         raise HTTPException(status_code=500, detail=f"Test directory not found: {test_path}")
@@ -79,9 +76,7 @@ def run_section(body: RunRequest, user: dict = Depends(get_current_user)):
             capture_output=True,
             text=True,
             timeout=settings.PYTEST_TIMEOUT + 10,
-            cwd=os.path.normpath(
-                os.path.join(settings.REPO_ROOT, "..", "debugging-championship")
-            ),
+            cwd=settings.REPO_ROOT,
         )
         duration = time.monotonic() - start
     except subprocess.TimeoutExpired:
@@ -107,11 +102,22 @@ def run_section(body: RunRequest, user: dict = Depends(get_current_user)):
     score    = round((passed / total * max_pts) if total else 0, 2)
 
     # Per-test details
+    def _get_test_error(t):
+        for phase in ("call", "setup", "teardown"):
+            pd = t.get(phase) or {}
+            if pd.get("outcome") in ("failed", "error"):
+                lr = pd.get("longrepr", "")
+                if isinstance(lr, dict):
+                    lr = lr.get("repr", "")
+                return str(lr).strip()
+        return ""
+
     tests = [
         {
             "name":     t.get("nodeid", "").split("::")[-1],
             "outcome":  t.get("outcome"),
             "duration": round(t.get("duration", 0), 3),
+            "error":    _get_test_error(t) if t.get("outcome") != "passed" else "",
         }
         for t in report.get("tests", [])
     ]
@@ -129,7 +135,7 @@ def run_section(body: RunRequest, user: dict = Depends(get_current_user)):
 
 
 @router.get("/sections")
-def list_sections(_: dict = Depends(get_current_user)):
+def list_sections(_: dict = Depends(require_admin)):
     """Return available sections and their max points."""
     return {
         "sections": [
