@@ -380,7 +380,7 @@ def activity_monitor_page():
     """Simple admin monitor page (template example)."""
     template_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
-        "static",
+        "templates",
         "admin_activity.html",
     )
     if not os.path.isfile(template_path):

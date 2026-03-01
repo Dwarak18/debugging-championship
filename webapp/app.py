@@ -5,8 +5,6 @@ Main FastAPI application entry point.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.staticfiles import StaticFiles
-import os
 
 from webapp.routers import auth, leaderboard, runner, info, admin
 from webapp.routers.validator import router as validator_router
@@ -50,10 +48,6 @@ def create_app() -> FastAPI:
     app.include_router(admin.router,       prefix="/api/admin",       tags=["Admin"])
     app.include_router(admin.web_router,                               tags=["Admin UI"])
 
-    # ── Static files (frontend) ───────────────────────────────────────────────
-    static_dir = os.path.join(os.path.dirname(__file__), "static")
-    if os.path.isdir(static_dir):
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
     return app
 
