@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://debugging-championship-production-248a.up.railway.app/api/:path*"
+      "destination": "https://debugging-championship-production.up.railway.app/api/:path*"
     }
   ]
 }
