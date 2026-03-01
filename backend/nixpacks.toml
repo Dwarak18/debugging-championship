@@ -1,0 +1,11 @@
+# Nixpacks config — Node.js 20 backend
+# package.json is in backend/ (Railway root dir)
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "git", "python311"]
+
+[phases.install]
+cmds = ["npm install --omit=dev"]
+
+[start]
+cmd = "node app.js"

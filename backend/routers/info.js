@@ -15,11 +15,6 @@ const EVENT = {
   ],
 };
 
-// GET /api/health  — liveness probe (Railway healthcheck)
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 // GET /api/info
 router.get('/info', (_req, res) => res.json(EVENT));
 
