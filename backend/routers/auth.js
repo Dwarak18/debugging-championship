@@ -24,7 +24,7 @@ router.post('/login', async (req, res, next) => {
 
     await db.updateLastLogin(username);
     const token = createAccessToken({
-      sub: student.username, is_admin: false,
+      sub: student.username, is_admin: !!student.is_admin,
       full_name: student.full_name, college: student.college, team: student.team,
     });
     res.json({

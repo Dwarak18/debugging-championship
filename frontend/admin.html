@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin Portal — Debugging Championship 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23dc2626'/%3E%3Ctext x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='white'%3E⚙%3C/text%3E%3C/svg%3E"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0a0a0f;
+      --surface: #111118;
+      --surface2:#18181f;
+      --border:  #26262f;
+      --accent:  #dc2626;
+      --accent-h:#ef4444;
+      --amber:   #f59e0b;
+      --green:   #10b981;
+      --red:     #ef4444;
+      --text:    #f1f5f9;
+      --muted:   #64748b;
+      --radius:  10px;
+      font-size: 14px;
+    }
+    body { background: var(--bg); color: var(--text);
+           font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    .hidden { display: none !important; }
+
+    /* ── Login ─────────────────────────────────────── */
+    #login-page {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 50% 0%, #3b0a0a 0%, var(--bg) 65%);
+    }
+    .login-box {
+      background: var(--surface); border: 1px solid rgba(220,38,38,.35);
+      border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 400px;
+      box-shadow: 0 25px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(220,38,38,.1);
+    }
+    .login-logo { text-align: center; margin-bottom: 32px; }
+    .login-logo .icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+    .login-logo h1 { font-size: 1.3rem; font-weight: 800; }
+    .login-logo p  { color: var(--muted); font-size: .83rem; margin-top: 4px; }
+    .admin-badge {
+      display: inline-block; background: rgba(220,38,38,.15);
+      border: 1px solid rgba(220,38,38,.4); color: var(--accent);
+      border-radius: 6px; padding: 3px 10px; font-size: .72rem;
+      font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      margin-top: 8px;
+    }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: .78rem; color: var(--muted);
+                   text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+    .field input {
+      width: 100%; padding: 12px 14px; border-radius: var(--radius);
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); font-size: .95rem; outline: none; transition: border-color .2s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .btn-login {
+      width: 100%; padding: 13px; background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: background .2s;
+    }
+    .btn-login:hover   { background: var(--accent-h); }
+    .btn-login:disabled { opacity: .5; cursor: not-allowed; }
+    #login-msg { margin-top: 12px; text-align: center; font-size: .85rem; min-height: 20px; }
+    .back-link {
+      display: block; text-align: center; margin-top: 18px;
+      font-size: .8rem; color: var(--muted); text-decoration: none;
+    }
+    .back-link:hover { color: var(--text); }
+
+    /* ── App Shell ─────────────────────────────────── */
+    #app { display: none; flex-direction: column; min-height: 100vh; }
+    #topbar {
+      height: 54px; background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    #topbar .logo { font-weight: 800; font-size: .95rem; letter-spacing: -.3px; }
+    #topbar .logo span { color: var(--accent); }
+    .admin-tag {
+      background: rgba(220,38,38,.15); border: 1px solid rgba(220,38,38,.3);
+      color: var(--accent); border-radius: 4px; padding: 2px 8px;
+      font-size: .7rem; font-weight: 700; letter-spacing: .05em;
+    }
+    #topbar nav { display: flex; gap: 4px; margin-left: 16px; }
+    .nav-btn {
+      padding: 6px 14px; border-radius: 8px; border: none;
+      background: transparent; color: var(--muted); font-size: .85rem;
+      cursor: pointer; transition: all .15s; font-weight: 500;
+    }
+    .nav-btn:hover  { background: var(--surface2); color: var(--text); }
+    .nav-btn.active { background: var(--surface2); color: var(--accent); }
+    #topbar .user-pill {
+      margin-left: auto; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 14px; font-size: .8rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .logout-btn { background: none; border: none; color: var(--muted);
+                  font-size: .75rem; cursor: pointer; }
+    .logout-btn:hover { color: var(--red); }
+
+    /* ── Content ─────────────────────────────────── */
+    .content { flex: 1; padding: 24px; max-width: 1300px; margin: 0 auto; width: 100%; }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn .18s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+    /* ── Cards & forms ───────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+    }
+    .card-title {
+      font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+      color: var(--muted); margin-bottom: 16px; font-weight: 600;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { margin-bottom: 13px; }
+    .form-group label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 5px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 12px; background: var(--bg);
+      border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; font-size: .88rem; outline: none; transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent);
+    }
+    .form-group textarea { resize: vertical; min-height: 110px; font-family: monospace; }
+    .btn { padding: 9px 18px; border-radius: 8px; border: none;
+           font-size: .85rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover { background: var(--accent-h); }
+    .btn-green  { background: rgba(16,185,129,.15); color: var(--green);
+                  border: 1px solid rgba(16,185,129,.3); }
+    .btn-green:hover { background: rgba(16,185,129,.25); }
+    .btn-danger { background: rgba(239,68,68,.1); color: var(--red);
+                  border: 1px solid rgba(239,68,68,.3); }
+    .btn-danger:hover { background: rgba(239,68,68,.2); }
+    .btn-amber  { background: rgba(245,158,11,.12); color: var(--amber);
+                  border: 1px solid rgba(245,158,11,.3); }
+    .btn-amber:hover { background: rgba(245,158,11,.22); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Stats ───────────────────────────────────── */
+    .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px;
+    }
+    .stat-card .val { font-size: 2rem; font-weight: 800; color: var(--accent); }
+    .stat-card .lbl { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Tables ───────────────────────────────────── */
+    .tbl { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .tbl th {
+      text-align: left; padding: 9px 10px; color: var(--muted);
+      border-bottom: 1px solid var(--border); font-size: .72rem;
+      text-transform: uppercase; font-weight: 600;
+    }
+    .tbl td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    .tbl tr:last-child td { border-bottom: none; }
+    .tbl tr:hover td { background: var(--surface2); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .badge-green { background: rgba(16,185,129,.1); color: var(--green); }
+    .badge-red   { background: rgba(239,68,68,.1);  color: var(--red); }
+    .badge-amber { background: rgba(245,158,11,.1); color: var(--amber); }
+    .badge-blue  { background: rgba(99,102,241,.1); color: #818cf8; }
+
+    /* ── Timer cards ─────────────────────────────── */
+    .timer-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+    .timer-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px;
+    }
+    .timer-card h3 { font-size: .92rem; font-weight: 700; margin-bottom: 4px; }
+    .timer-val { font-size: 1.4rem; font-weight: 800; color: var(--amber); margin: 8px 0; }
+    .timer-val.expired { color: var(--red); }
+    .timer-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .timer-actions .btn { font-size: .78rem; padding: 6px 12px; }
+
+    /* ── Feedback banners ─────────────────────────── */
+    .msg { padding: 10px 14px; border-radius: 8px; font-size: .83rem; margin-top: 10px; }
+    .msg-ok  { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
+    .msg-err { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: var(--red); }
+
+    /* ── Modal ────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 10000;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .2s; pointer-events: none;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px 30px; max-width: 460px; width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      transform: scale(.95); transition: transform .2s;
+    }
+    .modal-overlay.open .modal-box { transform: scale(1); }
+    .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: 10px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+    /* ── Leaderboard ──────────────────────────────── */
+    .s1 { background: rgba(99,102,241,.15); color: #818cf8; border-radius:4px; padding:2px 6px; font-size:.73rem; }
+    .s2 { background: rgba(16,185,129,.15); color: #34d399; border-radius:4px; padding:2px 6px; font-size:.73rem; }
+    .s3 { background: rgba(245,158,11,.15); color: #fcd34d; border-radius:4px; padding:2px 6px; font-size:.73rem; }
+    .s4 { background: rgba(239,68,68,.15);  color: #f87171; border-radius:4px; padding:2px 6px; font-size:.73rem; }
+
+    /* ── Spinner ──────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      animation: spin .6s linear infinite; vertical-align: middle;
+    }
+
+    /* ── Responsive ───────────────────────────────── */
+    @media (max-width: 800px) {
+      .stats-row { grid-template-columns: repeat(2,1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+      .timer-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     LOGIN
+═══════════════════════════════════════════════════ -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="icon">⚙️</span>
+      <h1>Admin Portal</h1>
+      <p>Debugging Championship 2026</p>
+      <span class="admin-badge">Restricted Access</span>
+    </div>
+
+    <div class="field">
+      <label>Admin Username</label>
+      <input id="l-user" type="text" placeholder="admin" autocomplete="username"
+             onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">🔐 Sign In to Admin Portal</button>
+    <div id="login-msg"></div>
+    <a class="back-link" href="/">← Back to Participant Portal</a>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     APP SHELL
+═══════════════════════════════════════════════════ -->
+<div id="app">
+  <!-- Topbar -->
+  <div id="topbar">
+    <div class="logo">DEBUG<span>CHAMP</span></div>
+    <span class="admin-tag">ADMIN</span>
+    <nav>
+      <button class="nav-btn active" onclick="showPage('overview',this)">📊 Overview</button>
+      <button class="nav-btn" onclick="showPage('students',this);loadStudents()">👥 Students</button>
+      <button class="nav-btn" onclick="showPage('timers',this);loadTimers()">⏱ Timers</button>
+      <button class="nav-btn" onclick="showPage('leaderboard',this);loadLeaderboard()">🏆 Leaderboard</button>
+    </nav>
+    <div class="user-pill">
+      <span id="topbar-name">Admin</span>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ── Overview ────────────────────────────────── -->
+    <div class="page active" id="page-overview">
+      <h2 style="margin-bottom:20px;font-size:1.1rem">📊 Admin Overview</h2>
+      <div class="stats-row">
+        <div class="stat-card"><div class="val" id="ov-students">—</div><div class="lbl">Registered Students</div></div>
+        <div class="stat-card"><div class="val" id="ov-submissions">—</div><div class="lbl">Total Submissions</div></div>
+        <div class="stat-card"><div class="val" id="ov-active">—</div><div class="lbl">Active Sections</div></div>
+        <div class="stat-card"><div class="val" id="ov-top">—</div><div class="lbl">Top Score</div></div>
+      </div>
+      <div class="grid-2" style="gap:16px">
+        <div class="card">
+          <div class="card-title">Quick Actions</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-amber" onclick="showPage('students',document.querySelector('[onclick*=students]'));loadStudents()">
+              👥 Manage Students
+            </button>
+            <button class="btn btn-amber" onclick="showPage('timers',document.querySelector('[onclick*=timers]'));loadTimers()">
+              ⏱ Section Timers
+            </button>
+            <button class="btn btn-danger" id="ov-reset-btn" onclick="confirmResetLeaderboard()">
+              🗑 Reset All Scores
+            </button>
+            <button class="btn btn-accent" onclick="unlockAllSections()">
+              🔓 Unlock All Sections
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Section Timer Status</div>
+          <div id="ov-timer-status" style="font-size:.85rem;color:var(--muted)">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Students ─────────────────────────────────── -->
+    <div class="page" id="page-students">
+      <h2 style="margin-bottom:18px;font-size:1.1rem">👥 Students</h2>
+      <div class="grid-2" style="margin-bottom:16px">
+
+        <!-- Create student -->
+        <div class="card">
+          <div class="card-title">Create Student</div>
+          <div class="form-group"><label>Username *</label><input id="s-user" placeholder="student_username"/></div>
+          <div class="form-group"><label>Password *</label><input id="s-pass" placeholder="TempPass@123"/></div>
+          <div class="form-group"><label>Full Name</label><input id="s-name" placeholder="Jane Doe"/></div>
+          <div class="form-group"><label>Email</label><input id="s-email" placeholder="jane@college.edu"/></div>
+          <div class="form-group"><label>College</label><input id="s-college" placeholder="College name"/></div>
+          <div class="form-group"><label>Team</label><input id="s-team" placeholder="Team Alpha"/></div>
+          <button class="btn btn-accent" onclick="createStudent()">+ Create Student</button>
+          <div id="create-msg"></div>
+        </div>
+
+        <!-- Bulk import -->
+        <div class="card">
+          <div class="card-title">Bulk Import (JSON)</div>
+          <p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">
+            Paste JSON array. Required: <strong>username, password</strong>.
+            Optional: full_name, email, college, team
+          </p>
+          <div class="form-group">
+            <textarea id="bulk-json" placeholder='[{"username":"alice","password":"Pass@1","full_name":"Alice K","college":"MIT","team":"Alpha"}]'></textarea>
+          </div>
+          <button class="btn btn-accent" onclick="bulkImport()">Import JSON</button>
+          <div id="bulk-msg"></div>
+          <hr style="margin:16px 0;border-color:var(--border)"/>
+          <div class="card-title">Upload CSV</div>
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px">
+            Columns: username, password (rest optional)
+          </p>
+          <div class="form-group"><input type="file" id="csv-file" accept=".csv"/></div>
+          <button class="btn btn-accent" onclick="uploadCSV()">Upload CSV</button>
+          <div id="csv-msg"></div>
+        </div>
+      </div>
+
+      <!-- Students table -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="card-title" style="margin-bottom:0">Registered Students (<span id="student-count">0</span>)</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger" style="font-size:.78rem;padding:6px 12px" onclick="confirmResetLeaderboard()">Reset Scores</button>
+            <button class="btn" style="font-size:.78rem;padding:6px 12px;border:1px solid var(--border);color:var(--muted)" onclick="loadStudents()">↻ Refresh</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>#</th><th>Username</th><th>Full Name</th><th>Email</th>
+                <th>College</th><th>Team</th><th>Status</th><th>Last Login</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="students-body"><tr><td colspan="9" style="color:var(--muted);padding:16px">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Timers ────────────────────────────────────── -->
+    <div class="page" id="page-timers">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <h2 style="font-size:1.1rem">⏱ Section Timers</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-accent" onclick="unlockAllSections()">🔓 Unlock All</button>
+          <button class="btn" style="border:1px solid var(--border);color:var(--muted);font-size:.78rem;padding:6px 12px" onclick="loadTimers()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px;padding:14px 18px;background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.25)">
+        <span style="font-size:.83rem;color:var(--amber)">
+          ▶ <strong>Start</strong> opens the section (unlocks downloads + validation). &nbsp;
+          ⏸ <strong>Pause</strong> freezes the timer. &nbsp;
+          ⏹ <strong>Stop</strong> closes the section and locks it.
+        </span>
+      </div>
+      <div class="timer-grid" id="timer-grid">
+        <div style="color:var(--muted);padding:20px">Loading timers…</div>
+      </div>
+    </div>
+
+    <!-- ── Leaderboard ───────────────────────────────── -->
+    <div class="page" id="page-leaderboard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <h2 style="font-size:1.1rem">🏆 Leaderboard</h2>
+        <button class="btn" style="border:1px solid var(--border);color:var(--muted);font-size:.78rem;padding:6px 12px" onclick="loadLeaderboard()">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <table class="tbl">
+          <thead>
+            <tr><th>#</th><th>Username</th><th>Full Name</th><th>College</th><th>Team</th>
+                <th><span class="s1">S1</span></th><th><span class="s2">S2</span></th>
+                <th><span class="s3">S3</span></th><th><span class="s4">S4</span></th>
+                <th>Total</th></tr>
+          </thead>
+          <tbody id="lb-body"><tr><td colspan="10" style="color:var(--muted);padding:16px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ── Edit Student Modal ──────────────────────────── -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-box">
+    <h3>Edit Student</h3>
+    <input type="hidden" id="edit-username"/>
+    <div class="form-group"><label>Full Name</label><input id="edit-name"/></div>
+    <div class="form-group"><label>Email</label><input id="edit-email"/></div>
+    <div class="form-group"><label>College</label><input id="edit-college"/></div>
+    <div class="form-group"><label>Team</label><input id="edit-team"/></div>
+    <div class="modal-actions">
+      <button class="btn" style="border:1px solid var(--border);color:var(--muted)" onclick="closeModal('edit-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm Reset Modal ─────────────────────────── -->
+<div class="modal-overlay" id="reset-modal">
+  <div class="modal-box">
+    <h3 style="color:var(--red)">⚠ Reset All Scores?</h3>
+    <p style="color:var(--muted);margin:10px 0 0">This will wipe ALL submission data and leaderboard scores. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn" style="border:1px solid var(--border);color:var(--muted)" onclick="closeModal('reset-modal')">Cancel</button>
+      <button class="btn btn-danger" onclick="doResetLeaderboard()">Yes, Reset Everything</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Config ─────────────────────────────────────────────────────────────────
+var API_BASE = ""; // Proxied through Vercel rewrites → Railway
+
+// ── State ──────────────────────────────────────────────────────────────────
+var TOKEN = localStorage.getItem("dc_admin_token") || "";
+var ADMIN_USER = "";
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+window.onload = () => {
+  if (TOKEN) {
+    // Verify token is still admin
+    try {
+      let b64 = TOKEN.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+      while (b64.length % 4) b64 += "=";
+      const pl = JSON.parse(atob(b64));
+      if (pl.is_admin && pl.exp * 1000 > Date.now()) {
+        ADMIN_USER = pl.sub;
+        showApp();
+        return;
+      }
+    } catch {}
+    TOKEN = "";
+    localStorage.removeItem("dc_admin_token");
+  }
+  document.getElementById("login-page").style.display = "flex";
+};
+
+// ── Login ──────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const u = document.getElementById("l-user").value.trim();
+  const p = document.getElementById("l-pass").value;
+  const msg = document.getElementById("login-msg");
+  const btn = document.getElementById("login-btn");
+  if (!u || !p) { showMsg(msg,"Enter username and password","err"); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  try {
+    const res = await fetch(API_BASE + "/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: u, password: p }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showMsg(msg, data.detail || "Login failed", "err"); return; }
+
+    // Decode JWT to verify admin
+    let isAdmin = false;
+    try {
+      let b64 = data.access_token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+      while (b64.length % 4) b64 += "=";
+      isAdmin = !!JSON.parse(atob(b64)).is_admin;
+    } catch {}
+
+    if (!isAdmin) { showMsg(msg, "Access denied: not an admin account", "err"); return; }
+
+    TOKEN = data.access_token;
+    ADMIN_USER = u;
+    localStorage.setItem("dc_admin_token", TOKEN);
+    document.getElementById("login-page").style.display = "none";
+    showApp();
+  } catch(e) {
+    showMsg(msg, "Network error: " + e.message, "err");
+  } finally {
+    btn.disabled = false; btn.textContent = "🔐 Sign In to Admin Portal";
+  }
+}
+
+function doLogout() {
+  TOKEN = ""; ADMIN_USER = "";
+  localStorage.removeItem("dc_admin_token");
+  location.reload();
+}
+
+// ── App ────────────────────────────────────────────────────────────────────
+function showApp() {
+  document.getElementById("login-page").style.display = "none";
+  const app = document.getElementById("app");
+  app.style.display = "flex";
+  document.getElementById("topbar-name").textContent = ADMIN_USER || "Admin";
+  loadOverview();
+}
+
+function showPage(name, btn) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("page-" + name).classList.add("active");
+  if (btn) btn.classList.add("active");
+}
+
+// ── API helper ─────────────────────────────────────────────────────────────
+async function api(url, method = "GET", body = null) {
+  const opts = {
+    method,
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + TOKEN },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_BASE + url, opts);
+  return res;
+}
+
+// ── Overview ───────────────────────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const [sRes, lRes, tRes] = await Promise.all([
+      api("/api/admin/students"),
+      api("/api/leaderboard"),
+      api("/api/timers/status"),
+    ]);
+    const students = sRes.ok ? await sRes.json() : [];
+    const lb       = lRes.ok ? await lRes.json() : [];
+    const timers   = tRes.ok ? await tRes.json() : {};
+
+    document.getElementById("ov-students").textContent = students.length;
+
+    const topScore = lb.length ? Math.max(...lb.map(r => r.total_score || 0)) : 0;
+    document.getElementById("ov-top").textContent = topScore;
+
+    // Count active sections
+    const timerArr = Object.values(timers || {});
+    const active = timerArr.filter(t => t.is_active && !t.is_paused).length;
+    document.getElementById("ov-active").textContent = active + " / 4";
+
+    // Get submission count from leaderboard proxy
+    let subCount = 0;
+    lb.forEach(r => {
+      subCount += (r.section1 > 0 ? 1 : 0) + (r.section2 > 0 ? 1 : 0) +
+                  (r.section3 > 0 ? 1 : 0) + (r.section4 > 0 ? 1 : 0);
+    });
+    document.getElementById("ov-submissions").textContent = subCount;
+
+    // Timer status mini view
+    const html = [1,2,3,4].map(s => {
+      const t = timers[s] || {};
+      const status = t.is_active ? (t.is_paused ? 'Paused' : 'Running') : 'Stopped';
+      const color  = t.is_active ? (t.is_paused ? 'var(--amber)' : 'var(--green)') : 'var(--muted)';
+      return `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+        <span>Section ${s}</span>
+        <span style="color:${color};font-weight:600">${status}</span>
+      </div>`;
+    }).join("");
+    document.getElementById("ov-timer-status").innerHTML = html;
+
+  } catch(e) {
+    console.error("Overview load error:", e);
+  }
+}
+
+// ── Students ───────────────────────────────────────────────────────────────
+async function loadStudents() {
+  const tbody = document.getElementById("students-body");
+  tbody.innerHTML = `<tr><td colspan="9" style="color:var(--muted);padding:16px">Loading…</td></tr>`;
+  try {
+    const res  = await api("/api/admin/students");
+    const data = await res.json();
+    if (!res.ok) { tbody.innerHTML = `<tr><td colspan="9" style="color:var(--red);padding:12px">${data.detail}</td></tr>`; return; }
+    document.getElementById("student-count").textContent = data.length;
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="9" style="color:var(--muted);padding:16px">No students yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = data.map((s, i) => `
+      <tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td><strong>${esc(s.username)}</strong></td>
+        <td>${esc(s.full_name || "—")}</td>
+        <td style="color:var(--muted);font-size:.78rem">${esc(s.email || "—")}</td>
+        <td>${esc(s.college || "—")}</td>
+        <td>${esc(s.team || "—")}</td>
+        <td><span class="badge ${s.is_active ? 'badge-green' : 'badge-red'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td style="color:var(--muted);font-size:.78rem">${s.last_login ? new Date(s.last_login).toLocaleString() : "Never"}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn" style="font-size:.7rem;padding:4px 9px;border:1px solid var(--border);color:var(--muted)"
+              onclick='openEdit(${JSON.stringify({username:s.username,full_name:s.full_name,email:s.email,college:s.college,team:s.team})})'>Edit</button>
+            ${s.is_active
+              ? `<button class="btn btn-danger" style="font-size:.7rem;padding:4px 9px" onclick="deactivate('${esc(s.username)}')">Deactivate</button>`
+              : `<button class="btn btn-green"  style="font-size:.7rem;padding:4px 9px" onclick="reactivate('${esc(s.username)}')">Reactivate</button>`
+            }
+          </div>
+        </td>
+      </tr>`).join("");
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--red);padding:12px">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function createStudent() {
+  const u = document.getElementById("s-user").value.trim();
+  const p = document.getElementById("s-pass").value.trim();
+  const msg = document.getElementById("create-msg");
+  if (!u || !p) { showMsg(msg,"Username and password required","err"); return; }
+  const res = await api("/api/admin/students","POST",{
+    username:u, password:p,
+    full_name: document.getElementById("s-name").value.trim(),
+    email:     document.getElementById("s-email").value.trim(),
+    college:   document.getElementById("s-college").value.trim(),
+    team:      document.getElementById("s-team").value.trim(),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(msg, `✓ Student "${u}" created`, "ok");
+    ["s-user","s-pass","s-name","s-email","s-college","s-team"].forEach(id => document.getElementById(id).value = "");
+    loadStudents();
+  } else { showMsg(msg, data.detail || "Error creating student", "err"); }
+}
+
+async function bulkImport() {
+  const raw = document.getElementById("bulk-json").value.trim();
+  const msg = document.getElementById("bulk-msg");
+  let students;
+  try { students = JSON.parse(raw); } catch { showMsg(msg,"Invalid JSON","err"); return; }
+  const res  = await api("/api/admin/students/import","POST",{students});
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(msg, `✓ Imported ${data.created}, skipped ${data.skipped}`, "ok");
+    loadStudents();
+  } else { showMsg(msg, data.detail || "Import failed","err"); }
+}
+
+async function uploadCSV() {
+  const file = document.getElementById("csv-file").files[0];
+  const msg  = document.getElementById("csv-msg");
+  if (!file) { showMsg(msg,"Select a CSV file","err"); return; }
+  const form = new FormData(); form.append("file", file);
+  const res  = await fetch(API_BASE + "/api/admin/students/import-csv", {
+    method: "POST", headers: { "Authorization": "Bearer " + TOKEN }, body: form,
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(msg, `✓ Imported ${data.created}, skipped ${data.skipped}`, "ok");
+    loadStudents();
+  } else { showMsg(msg, data.detail || "CSV import failed","err"); }
+}
+
+function openEdit(s) {
+  document.getElementById("edit-username").value = s.username;
+  document.getElementById("edit-name").value    = s.full_name || "";
+  document.getElementById("edit-email").value   = s.email    || "";
+  document.getElementById("edit-college").value = s.college  || "";
+  document.getElementById("edit-team").value    = s.team     || "";
+  document.getElementById("edit-modal").classList.add("open");
+}
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+async function saveEdit() {
+  const u = document.getElementById("edit-username").value;
+  const res = await api(`/api/admin/students/${u}`,"PATCH",{
+    full_name: document.getElementById("edit-name").value.trim(),
+    email:     document.getElementById("edit-email").value.trim(),
+    college:   document.getElementById("edit-college").value.trim(),
+    team:      document.getElementById("edit-team").value.trim(),
+  });
+  if (res.ok) { closeModal("edit-modal"); loadStudents(); }
+  else { const d = await res.json(); alert(d.detail || "Save failed"); }
+}
+
+async function deactivate(u) {
+  if (!confirm(`Deactivate "${u}"?`)) return;
+  await api(`/api/admin/students/${u}/deactivate`,"POST");
+  loadStudents();
+}
+async function reactivate(u) {
+  await api(`/api/admin/students/${u}/reactivate`,"POST");
+  loadStudents();
+}
+
+// ── Timers ─────────────────────────────────────────────────────────────────
+const SECTION_NAMES = {1:"Multi-File Debugging",2:"Broken Recovery",3:"Memory & Deadlock",4:"Logical Tracing"};
+const SECTION_DURATIONS = {1:45,2:40,3:50,4:35};
+
+async function loadTimers() {
+  const grid = document.getElementById("timer-grid");
+  try {
+    const res  = await api("/api/timers/status");
+    const data = res.ok ? await res.json() : {};
+    grid.innerHTML = [1,2,3,4].map(s => {
+      const t = data[s] || {};
+      const rem = t.remaining_seconds != null ? t.remaining_seconds : (SECTION_DURATIONS[s] * 60);
+      const m = Math.floor(rem / 60), sec = rem % 60;
+      const timeStr = `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+      const isActive  = !!t.is_active;
+      const isPaused  = !!t.is_paused;
+      const status    = isActive ? (isPaused ? "⏸ Paused" : "▶ Running") : "⏹ Stopped";
+      const statusColor = isActive ? (isPaused ? "var(--amber)" : "var(--green)") : "var(--muted)";
+      return `
+        <div class="timer-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <h3>Section ${s} — ${SECTION_NAMES[s]}</h3>
+            <span style="font-size:.75rem;color:${statusColor};font-weight:700">${status}</span>
+          </div>
+          <div class="timer-val ${rem <= 0 && isActive ? 'expired' : ''}">${timeStr}</div>
+          <div class="timer-actions">
+            ${!isActive
+              ? `<button class="btn btn-green" onclick="timerAction(${s},'start')">▶ Start</button>`
+              : (isPaused
+                  ? `<button class="btn btn-amber" onclick="timerAction(${s},'resume')">▶ Resume</button>`
+                  : `<button class="btn btn-amber" onclick="timerAction(${s},'pause')">⏸ Pause</button>`)
+            }
+            ${isActive ? `<button class="btn btn-danger" onclick="timerAction(${s},'stop')">⏹ Stop</button>` : ''}
+            <button class="btn" style="border:1px solid var(--border);color:var(--muted)" onclick="timerAction(${s},'reset')">↺ Reset</button>
+          </div>
+        </div>`;
+    }).join("");
+  } catch(e) {
+    grid.innerHTML = `<div style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+}
+
+async function timerAction(section, action) {
+  const res = await api(`/api/admin/timers/${section}/${action}`, "POST");
+  if (!res.ok) { const d = await res.json(); alert(d.detail || "Timer action failed"); return; }
+  loadTimers();
+  loadOverview();
+}
+
+async function unlockAllSections() {
+  for (const s of [1,2,3,4]) {
+    await api(`/api/admin/timers/${s}/start`, "POST");
+  }
+  loadTimers();
+  loadOverview();
+  alert("All 4 sections unlocked.");
+}
+
+// ── Leaderboard ────────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  const tbody = document.getElementById("lb-body");
+  tbody.innerHTML = `<tr><td colspan="10" style="color:var(--muted);padding:16px">Loading…</td></tr>`;
+  try {
+    const res  = await api("/api/leaderboard");
+    const data = await res.json();
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="10" style="color:var(--muted);padding:16px">No submissions yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = data.map((r,i) => `
+      <tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td><strong>${esc(r.username)}</strong></td>
+        <td>${esc(r.full_name || "—")}</td>
+        <td style="color:var(--muted);font-size:.78rem">${esc(r.college || "—")}</td>
+        <td>${esc(r.team || "—")}</td>
+        <td><span class="s1">${r.section1 || 0}</span></td>
+        <td><span class="s2">${r.section2 || 0}</span></td>
+        <td><span class="s3">${r.section3 || 0}</span></td>
+        <td><span class="s4">${r.section4 || 0}</span></td>
+        <td style="font-weight:800;color:var(--accent)">${r.total_score || 0}</td>
+      </tr>`).join("");
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="10" style="color:var(--red);padding:12px">Error: ${e.message}</td></tr>`;
+  }
+}
+
+// ── Reset leaderboard ──────────────────────────────────────────────────────
+function confirmResetLeaderboard() {
+  document.getElementById("reset-modal").classList.add("open");
+}
+async function doResetLeaderboard() {
+  closeModal("reset-modal");
+  const res = await api("/api/admin/leaderboard/reset","DELETE");
+  if (res.ok) { alert("Scores reset."); loadOverview(); }
+  else { const d = await res.json(); alert(d.detail || "Reset failed"); }
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function showMsg(el, text, type) {
+  if (!el) return;
+  el.innerHTML = `<div class="msg msg-${type}">${text}</div>`;
+  setTimeout(() => { if(el) el.innerHTML = ""; }, 5000);
+}
+</script>
+</body>
+</html>

@@ -35,6 +35,7 @@ async function initDb() {
       team          TEXT DEFAULT '',
       github_username TEXT DEFAULT '',
       is_active     BOOLEAN DEFAULT TRUE,
+      is_admin      BOOLEAN DEFAULT FALSE,
       created_at    TIMESTAMPTZ DEFAULT NOW(),
       last_login    TIMESTAMPTZ
     );
@@ -140,12 +141,12 @@ async function initDb() {
 
 // ── Students ──────────────────────────────────────────────────────────────────
 
-async function createStudent({ username, passwordHash, fullName='', email='', college='', team='', githubUsername='' }) {
+async function createStudent({ username, passwordHash, fullName='', email='', college='', team='', githubUsername='', isAdmin=false }) {
   try {
     await q(
-      `INSERT INTO students (username,password_hash,full_name,email,college,team,github_username)
-       VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7)`,
-      [username, passwordHash, fullName, email, college, team, githubUsername]
+      `INSERT INTO students (username,password_hash,full_name,email,college,team,github_username,is_admin)
+       VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8)`,
+      [username, passwordHash, fullName, email, college, team, githubUsername, isAdmin]
     );
     return true;
   } catch (err) {

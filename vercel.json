@@ -2,8 +2,12 @@
   "outputDirectory": "frontend",
   "rewrites": [
     {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
       "source": "/api/:path*",
-      "destination": "$RAILWAY_URL/api/:path*"
+      "destination": "https://debugging-championship-production-248a.up.railway.app/api/:path*"
     }
   ]
 }

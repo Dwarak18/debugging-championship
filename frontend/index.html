@@ -490,6 +490,10 @@
       <span class="chip">4 Sections</span>
       <span class="chip">Level 3</span>
     </div>
+    <a href="/admin" style="display:block;text-align:center;margin-top:16px;
+       font-size:.78rem;color:var(--muted);text-decoration:none"
+       onmouseover="this.style.color='var(--text)'"
+       onmouseout="this.style.color='var(--muted)'">⚙️ Admin Portal →</a>
   </div>
 </div>
 
@@ -820,9 +824,7 @@
 
 <script>
 // ── Backend base URL ───────────────────────────────────────────────────────
-// When hosted on Vercel (frontend) + Railway (backend), set this to your
-// Railway app URL, e.g. "https://your-app.up.railway.app"
-// Leave empty ("") when frontend and backend are on the same origin.
+// Railway backend URL — proxied through Vercel /api rewrites
 var API_BASE = "";
 
 // ── State ──────────────────────────────────────────────────────────────────
