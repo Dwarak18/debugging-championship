@@ -25,10 +25,12 @@ class Settings:
 
     # PostgreSQL connection string
     # Format: postgresql://user:password@host:port/dbname
-    DATABASE_URL: str          = os.getenv(
+    # Railway provides DATABASE_URL as postgres:// — psycopg2 needs postgresql://
+    _db_url: str               = os.getenv(
         "DATABASE_URL",
         "postgresql://dcuser:dcpassword@localhost:5432/debugchamp"
     )
+    DATABASE_URL: str          = _db_url.replace("postgres://", "postgresql://", 1) if _db_url.startswith("postgres://") else _db_url
 
     # Test runner
     PYTEST_TIMEOUT: int        = int(os.getenv("PYTEST_TIMEOUT", "60"))   # seconds per run
