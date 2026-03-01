@@ -46,22 +46,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    expose:
-      - "8000"
-
-  # ── Nginx Reverse Proxy ──────────────────────────────────────────────────
-  nginx:
-    image: nginx:1.27-alpine
-    restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
-    depends_on:
-      app:
-        condition: service_healthy
+      - "8000:8000"
 
 volumes:
   pg_data:
