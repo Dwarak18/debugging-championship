@@ -18,17 +18,17 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
-from webapp.core.security import hash_password
-from webapp.core.database import (
+from backend.core.security import hash_password
+from backend.core.database import (
     create_student, list_students, deactivate_student,
     reset_student_password, get_leaderboard, reset_leaderboard as _db_reset_lb,
     set_section_timer, reset_section_timer, get_all_section_timers,
-    update_github_username,
+    update_github_username, update_student, reactivate_student,
     pause_section_timer, resume_section_timer, stop_section_timer,
     list_anti_cheat_reports, get_anti_cheat_report,
-    list_editor_activity_timeline,
+    list_editor_activity_timeline, get_submissions_log,
 )
-from webapp.core.deps import require_admin
+from backend.core.deps import require_admin
 
 router = APIRouter()
 web_router = APIRouter()
@@ -60,6 +60,14 @@ class BulkImportRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
+
+
+class UpdateStudentRequest(BaseModel):
+    full_name: Optional[str] = None
+    email:     Optional[str] = None
+    college:   Optional[str] = None
+    team:      Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -180,6 +188,27 @@ def reset_password(username: str, body: ResetPasswordRequest):
     return {"message": f"Password reset for {username}"}
 
 
+@router.put("/students/{username}", dependencies=[Depends(require_admin)])
+def update_student_info(username: str, body: UpdateStudentRequest):
+    """Update editable fields for a student (CRUD edit)."""
+    update_student(
+        username,
+        full_name=body.full_name,
+        email=body.email,
+        college=body.college,
+        team=body.team,
+        is_active=body.is_active,
+    )
+    return {"message": f"Student {username} updated"}
+
+
+@router.post("/students/{username}/reactivate", dependencies=[Depends(require_admin)])
+def reactivate(username: str):
+    """Reactivate a previously deactivated student."""
+    reactivate_student(username)
+    return {"message": f"{username} reactivated"}
+
+
 @router.delete("/students/{username}", dependencies=[Depends(require_admin)])
 def deactivate(username: str):
     """Deactivate a student (they cannot login but scores are preserved)."""
@@ -211,6 +240,21 @@ class TimerRequest(BaseModel):
     section:          int
     duration_minutes: int  = 45
     start_now:        bool = True
+
+
+@router.post("/timers/unlock-all", dependencies=[Depends(require_admin)])
+def unlock_all_timers(duration_minutes: int = 45):
+    """Start all 4 section timers at once with the given duration."""
+    for section in (1, 2, 3, 4):
+        set_section_timer(section=section, duration_minutes=duration_minutes)
+    return {"message": "All 4 sections unlocked", "duration_minutes": duration_minutes}
+
+
+@router.get("/submissions", dependencies=[Depends(require_admin)])
+def submission_logs(limit: int = 500):
+    """Full submission log with team_no, team_name, commit_no, github_repo_link."""
+    rows = get_submissions_log(limit=min(max(limit, 1), 1000))
+    return {"submissions": rows, "total": len(rows)}
 
 
 @router.get("/timers", dependencies=[Depends(require_admin)])

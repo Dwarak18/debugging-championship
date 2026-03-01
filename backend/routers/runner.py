@@ -12,8 +12,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
-from webapp.core.config import settings
-from webapp.core.deps import get_current_user, require_admin
+from backend.core.config import settings
+from backend.core.deps import get_current_user, require_admin
 
 router = APIRouter()
 

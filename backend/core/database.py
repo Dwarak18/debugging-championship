@@ -13,7 +13,7 @@ from psycopg2.pool import ThreadedConnectionPool
 from contextlib import contextmanager
 from typing import List, Dict, Optional
 
-from webapp.core.config import settings
+from backend.core.config import settings
 
 # ── Connection pool ───────────────────────────────────────────────────────────
 _pool: Optional[ThreadedConnectionPool] = None
@@ -80,6 +80,12 @@ def init_db():
                     time_taken   REAL,
                     submitted_at TIMESTAMPTZ DEFAULT NOW()
                 );
+
+                -- Migration: add team/commit/github fields to submissions
+                ALTER TABLE submissions ADD COLUMN IF NOT EXISTS team_no          TEXT DEFAULT '';
+                ALTER TABLE submissions ADD COLUMN IF NOT EXISTS team_name        TEXT DEFAULT '';
+                ALTER TABLE submissions ADD COLUMN IF NOT EXISTS commit_no        TEXT DEFAULT '';
+                ALTER TABLE submissions ADD COLUMN IF NOT EXISTS github_repo_link TEXT DEFAULT '';
 
                 CREATE TABLE IF NOT EXISTS leaderboard (
                     username    TEXT PRIMARY KEY,
@@ -212,10 +218,27 @@ def update_last_login(username):
             cur.execute("UPDATE students SET last_login=NOW() WHERE username=%s", (username,))
 
 
-def deactivate_student(username):
+def update_student(username, full_name=None, email=None, college=None, team=None, is_active=None):
+    """Update editable fields on a student record."""
+    fields, vals = [], []
+    if full_name  is not None: fields.append("full_name=%s");  vals.append(full_name)
+    if email      is not None: fields.append("email=%s");      vals.append(email or None)
+    if college    is not None: fields.append("college=%s");    vals.append(college)
+    if team       is not None: fields.append("team=%s");       vals.append(team)
+    if is_active  is not None: fields.append("is_active=%s");  vals.append(is_active)
+    if not fields:
+        return
+    vals.append(username)
     with _conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("UPDATE students SET is_active=FALSE WHERE username=%s", (username,))
+            cur.execute(f"UPDATE students SET {', '.join(fields)} WHERE username=%s", vals)
+
+
+def reactivate_student(username):
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE students SET is_active=TRUE WHERE username=%s", (username,))
+
 
 
 def reset_student_password(username, new_hash):
@@ -234,14 +257,17 @@ def update_github_username(username, github_username):
 # ── Leaderboard ───────────────────────────────────────────────────────────────
 
 def upsert_score(username, section, score, passed_tests, total_tests, time_taken,
-                 full_name="", college="", team=""):
+                 full_name="", college="", team="",
+                 team_no="", team_name="", commit_no="", github_repo_link=""):
     sec = f"section{section}"
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO submissions (username,section,score,passed_tests,total_tests,time_taken) "
-                "VALUES (%s,%s,%s,%s,%s,%s)",
-                (username, section, score, passed_tests, total_tests, time_taken)
+                "INSERT INTO submissions (username,section,score,passed_tests,total_tests,time_taken,"
+                "team_no,team_name,commit_no,github_repo_link) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (username, section, score, passed_tests, total_tests, time_taken,
+                 team_no, team_name, commit_no, github_repo_link)
             )
             cur.execute(f"""
                 INSERT INTO leaderboard (username,full_name,college,team,{sec},total_score)
@@ -278,6 +304,23 @@ def get_user_scores(username) -> Optional[Dict]:
         with conn.cursor(cursor_factory=RD) as cur:
             cur.execute("SELECT * FROM leaderboard WHERE username=%s", (username,))
             return _row(cur)
+
+
+def get_submissions_log(limit: int = 500) -> List[Dict]:
+    """Return full submission log with team/commit/repo fields for admin view."""
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=RD) as cur:
+            cur.execute("""
+                SELECT s.id, s.username, st.full_name, s.section,
+                       s.score, s.passed_tests, s.total_tests, s.time_taken,
+                       s.team_no, s.team_name, s.commit_no, s.github_repo_link,
+                       s.submitted_at
+                FROM submissions s
+                LEFT JOIN students st ON st.username = s.username
+                ORDER BY s.submitted_at DESC
+                LIMIT %s
+            """, (limit,))
+            return _rows(cur)
 
 
 def reset_leaderboard():

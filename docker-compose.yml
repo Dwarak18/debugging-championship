@@ -1,4 +1,7 @@
 version: "3.9"
+# Local development: only PostgreSQL runs in Docker.
+# Start the backend with: uvicorn backend.app:app --reload
+# Set DATABASE_URL=postgresql://dcuser:dcpassword@localhost:5432/debugchamp
 
 services:
 
@@ -17,37 +20,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    expose:
-      - "5432"
-
-  # ── FastAPI Application ──────────────────────────────────────────────────
-  app:
-    build: .
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      ENV:           ${ENV:-production}
-      SECRET_KEY:    ${SECRET_KEY}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      DATABASE_URL:  postgresql://${POSTGRES_USER:-dcuser}:${POSTGRES_PASSWORD:-dcpassword}@db:5432/${POSTGRES_DB:-debugchamp}
-      REPO_ROOT:     /app
-    volumes:
-      - ./section1-multifile-debug/tests:/app/section1-multifile-debug/tests:ro
-      - ./section2-broken-recovery/tests:/app/section2-broken-recovery/tests:ro
-      - ./section3-memory-deadlock/tests:/app/section3-memory-deadlock/tests:ro
-      - ./section4-logical-tracing/tests:/app/section4-logical-tracing/tests:ro
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
     ports:
-      - "8000:8000"
+      - "5432:5432"
 
 volumes:
   pg_data:

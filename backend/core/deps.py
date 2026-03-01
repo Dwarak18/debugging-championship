@@ -5,7 +5,7 @@ FastAPI dependency: extract and verify Bearer token from request.
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from webapp.core.security import verify_token
+from backend.core.security import verify_token
 
 bearer = HTTPBearer(auto_error=True)
 

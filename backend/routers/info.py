@@ -5,8 +5,8 @@ Info / health router.
 from fastapi import APIRouter, Depends
 from datetime import datetime, timezone, timedelta
 
-from webapp.core.database import get_all_section_timers
-from webapp.core.deps import get_current_user
+from backend.core.database import get_all_section_timers
+from backend.core.deps import get_current_user
 
 router = APIRouter()
 
@@ -39,7 +39,7 @@ def info():
 @router.get("/ready")
 def ready():
     """Readiness probe — checks DB is reachable."""
-    from webapp.core.database import init_db
+    from backend.core.database import init_db
     try:
         init_db()
         return {"status": "ready"}

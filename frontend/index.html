@@ -425,6 +425,37 @@
       font-size: .73rem; color: var(--muted);
       border-top: 1px solid var(--border);
     }
+
+    /* ── Drag & Drop zone ─────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 28px 20px; text-align: center; cursor: pointer;
+      transition: border-color .2s, background .2s;
+      color: var(--muted); font-size: .85rem;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent); background: rgba(99,102,241,.05);
+      color: var(--text);
+    }
+    .drop-zone .dz-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+    /* ── Edit student modal ───────────────────────────────────────── */
+    #edit-modal .modal-box { max-width: 480px; }
+    #edit-modal .form-group { margin-bottom: 10px; }
+    #edit-modal .form-group label { font-size:.78rem; color:var(--muted); display:block; margin-bottom:4px; }
+    #edit-modal .form-group input { width:100%; padding:9px 12px; background:var(--bg);
+      border:1px solid var(--border); color:var(--text); border-radius:8px;
+      font-size:.88rem; outline:none; }
+    #edit-modal .form-group input:focus { border-color:var(--accent); }
+
+    /* ── Submission log table ─────────────────────────────────────── */
+    .sub-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .sub-table th { text-align:left; padding:8px 10px; color:var(--muted);
+      border-bottom:1px solid var(--border); font-size:.72rem; text-transform:uppercase; }
+    .sub-table td { padding:8px 10px; border-bottom:1px solid var(--border); }
+    .sub-table tr:hover td { background:var(--surface2); }
+    .sub-table a { color:var(--accent); text-decoration:none; font-size:.75rem; }
+    .sub-table a:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -660,7 +691,10 @@
       <div class="card" style="margin-top:16px">
         <div class="flex between center" style="margin-bottom:12px">
           <div class="card-title" style="margin-bottom:0">⏱ Section Timers &amp; Download Control</div>
-          <button class="refresh-btn" onclick="loadAdminTimers()">↻ Refresh</button>
+          <div class="flex gap8">
+            <button class="btn-sm btn-accent" onclick="unlockAllSections()">🔓 Unlock All Sections</button>
+            <button class="refresh-btn" onclick="loadAdminTimers()">↻ Refresh</button>
+          </div>
         </div>
         <p class="muted" style="font-size:.8rem;margin-bottom:12px">
           ▶ <strong>Start</strong> opens the section (unlocks download + validation). &nbsp;
@@ -695,6 +729,22 @@
                   style="background:var(--surface2);border:1px solid var(--border);color:var(--text)">
             Open in New Tab
           </button>
+        </div>
+      </div>
+
+      <!-- Submission Logs -->
+      <div class="card" style="margin-top:16px">
+        <div class="flex between center" style="margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">📝 Submission Logs</div>
+          <button class="refresh-btn" onclick="loadSubmissionLogs()">↻ Refresh</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="sub-table">
+            <thead>
+              <tr><th>#</th><th>Username</th><th>Full Name</th><th>Team No</th><th>Team Name</th><th>Section</th><th>Score</th><th>Passed</th><th>Commit</th><th>Repo</th><th>Submitted</th></tr>
+            </thead>
+            <tbody id="submissions-body"><tr><td colspan="11" class="muted" style="padding:16px">Click Refresh to load…</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -734,6 +784,25 @@
 
 <!-- Toast container -->
 <div id="toast-container"></div>
+
+<!-- Edit Student Modal -->
+<div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width:480px">
+    <h3>Edit Student</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">
+      Username: <strong id="edit-modal-username">—</strong>
+    </p>
+    <div class="form-group"><label>Full Name</label><input id="edit-full-name" placeholder="Jane Doe"/></div>
+    <div class="form-group"><label>Email</label><input id="edit-email" placeholder="jane@college.edu"/></div>
+    <div class="form-group"><label>College</label><input id="edit-college" placeholder="College name"/></div>
+    <div class="form-group"><label>Team</label><input id="edit-team" placeholder="Team Alpha"/></div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-sm" onclick="closeEditModal()"
+              style="background:var(--surface2);border:1px solid var(--border);color:var(--text)">Cancel</button>
+      <button class="btn-sm btn-accent" onclick="saveStudentEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
 
 <!-- Custom Confirm Modal -->
 <div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true">
@@ -1226,11 +1295,11 @@ async function uploadCSV() {
 
 async function loadStudents() {
   const tbody = document.getElementById("students-body");
-  tbody.innerHTML = `<tr><td colspan="9" class="muted">Loading…</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="10" class="muted">Loading…</td></tr>`;
   const res  = await api("/api/admin/students");
   const data = await res.json();
   if (!res.ok || !data.students.length) {
-    tbody.innerHTML=`<tr><td colspan="9" class="muted" style="padding:16px">No students registered yet</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="10" class="muted" style="padding:16px">No students registered yet</td></tr>`;
     return;
   }
   tbody.innerHTML = data.students.map((s,i)=>`
@@ -1255,8 +1324,16 @@ async function loadStudents() {
       <td><span class="status-badge ${s.is_active?'active-badge':'inactive-badge'}">${s.is_active?"Active":"Inactive"}</span></td>
       <td class="muted">${s.last_login?s.last_login.replace("T"," ").slice(0,16):"Never"}</td>
       <td>
-        <button class="btn-sm btn-danger" style="padding:4px 8px;font-size:.72rem"
-                onclick="deactivateStudent('${s.username}')">Deactivate</button>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn-sm btn-accent" style="padding:3px 8px;font-size:.72rem"
+                  onclick="openEditModal('${s.username}','${escHtml(s.full_name||'')}','${escHtml(s.email||'')}','${escHtml(s.college||'')}','${escHtml(s.team||'')}')">Edit</button>
+          ${s.is_active
+            ? `<button class="btn-sm btn-danger" style="padding:3px 8px;font-size:.72rem"
+                       onclick="deactivateStudent('${s.username}')">Deactivate</button>`
+            : `<button class="btn-sm" style="padding:3px 8px;font-size:.72rem;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)"
+                       onclick="reactivateStudent('${s.username}')">Reactivate</button>`
+          }
+        </div>
       </td>
     </tr>`).join("");
 }
@@ -1277,6 +1354,145 @@ async function deactivateStudent(u) {
   await api(`/api/admin/students/${u}`,"DELETE");
   showToast(`✅ ${u} deactivated`, 'ok');
   loadStudents();
+}
+
+async function reactivateStudent(u) {
+  const ok = await showConfirm(`Reactivate ${u}?`, `This will allow "${u}" to log in again.`);
+  if (!ok) return;
+  await api(`/api/admin/students/${u}/reactivate`, "POST");
+  showToast(`✅ ${u} reactivated`, 'ok');
+  loadStudents();
+}
+
+// ── Edit Student ───────────────────────────────────────────────────────────
+let _editUsername = "";
+function openEditModal(username, full_name, email, college, team) {
+  _editUsername = username;
+  document.getElementById("edit-modal-username").textContent = username;
+  document.getElementById("edit-full-name").value = full_name;
+  document.getElementById("edit-email").value      = email;
+  document.getElementById("edit-college").value    = college;
+  document.getElementById("edit-team").value       = team;
+  document.getElementById("edit-modal").classList.add("open");
+}
+function closeEditModal() {
+  document.getElementById("edit-modal").classList.remove("open");
+  _editUsername = "";
+}
+async function saveStudentEdit() {
+  if (!_editUsername) return;
+  const body = {
+    full_name: document.getElementById("edit-full-name").value.trim(),
+    email:     document.getElementById("edit-email").value.trim(),
+    college:   document.getElementById("edit-college").value.trim(),
+    team:      document.getElementById("edit-team").value.trim(),
+  };
+  const res  = await api(`/api/admin/students/${_editUsername}`, "PUT", body);
+  const data = await res.json();
+  if (res.ok) {
+    showToast(`✅ ${_editUsername} updated`, 'ok');
+    closeEditModal();
+    loadStudents();
+  } else {
+    showToast(`❌ ${data.detail}`, 'err');
+  }
+}
+
+// ── Drag & Drop import ─────────────────────────────────────────────────────
+function handleDrop(event) {
+  event.preventDefault();
+  document.getElementById("drop-zone").classList.remove("drag-over");
+  const file = event.dataTransfer.files[0];
+  if (file) handleDropFile(file);
+}
+async function handleDropFile(file) {
+  if (!file) return;
+  const msg  = document.getElementById("dz-msg");
+  msg.textContent = `⏳ Processing ${file.name}…`;
+  const text = await file.text();
+  const ext  = file.name.split(".").pop().toLowerCase();
+
+  if (ext === "json") {
+    // JSON path — reuse bulkImport logic
+    try {
+      const rows = JSON.parse(text);
+      if (!Array.isArray(rows)) throw new Error("Expected a JSON array");
+      document.getElementById("bulk-json").value = JSON.stringify(rows, null, 2);
+      const res  = await api("/api/admin/students/import", "POST", {students: rows});
+      const data = await res.json();
+      if (res.ok) {
+        msg.style.color = "var(--green)";
+        msg.textContent = `✅ JSON: created ${data.created}, skipped ${data.skipped}`;
+        loadStudents();
+      } else {
+        msg.style.color = "var(--red)";
+        msg.textContent = `❌ ${data.detail}`;
+      }
+    } catch(e) {
+      msg.style.color = "var(--red)";
+      msg.textContent = `❌ JSON parse error: ${e.message}`;
+    }
+  } else if (ext === "csv") {
+    // CSV path — upload as FormData
+    const form = new FormData();
+    form.append("file", file);
+    const res  = await fetch(API_BASE + "/api/admin/students/import-csv", {
+      method: "POST", headers: {"Authorization": `Bearer ${TOKEN}`}, body: form
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msg.style.color = "var(--green)";
+      msg.textContent = `✅ CSV: created ${data.created}, skipped ${data.skipped} (${data.total_rows} rows)`;
+      loadStudents();
+    } else {
+      msg.style.color = "var(--red)";
+      msg.textContent = `❌ ${data.detail}`;
+    }
+  } else {
+    msg.style.color = "var(--red)";
+    msg.textContent = "❌ Unsupported file type. Use .csv or .json";
+  }
+}
+
+// ── Unlock All Sections ────────────────────────────────────────────────────
+async function unlockAllSections() {
+  const ok = await showConfirm("Unlock all sections?", "This will start all 4 section timers at once (45 min each).");
+  if (!ok) return;
+  const res  = await api("/api/admin/timers/unlock-all", "POST");
+  const data = await res.json();
+  if (res.ok) {
+    showToast("🔓 All 4 sections unlocked!", "ok");
+    loadAdminTimers();
+  } else {
+    showToast(`❌ ${data.detail}`, "err");
+  }
+}
+
+// ── Submission Logs ────────────────────────────────────────────────────────
+async function loadSubmissionLogs() {
+  const tbody = document.getElementById("submissions-body");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="11" class="muted">Loading…</td></tr>`;
+  const res  = await api("/api/admin/submissions");
+  const data = await res.json();
+  if (!res.ok || !data.submissions.length) {
+    tbody.innerHTML = `<tr><td colspan="11" class="muted" style="padding:14px">No submissions yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.submissions.map((s, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${s.username}</td>
+      <td>${s.full_name||"—"}</td>
+      <td>${s.team_no||"—"}</td>
+      <td>${s.team_name||"—"}</td>
+      <td>S${s.section}</td>
+      <td class="${s.score>0?'pass':'fail'}">${s.score}</td>
+      <td>${s.passed_tests}/${s.total_tests}</td>
+      <td style="font-family:monospace;font-size:.72rem">${s.commit_no?s.commit_no.slice(0,10)+"…":"—"}</td>
+      <td>${s.github_repo_link?`<a href="${escHtml(s.github_repo_link)}" target="_blank">Repo ↗</a>`:"—"}</td>
+      <td class="muted">${s.submitted_at?s.submitted_at.replace("T"," ").slice(0,16):"—"}</td>
+    </tr>`).join("");
 }
 
 async function resetLeaderboard() {
