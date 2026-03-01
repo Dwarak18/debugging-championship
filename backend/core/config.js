@@ -8,7 +8,7 @@ module.exports = {
   // Auth
   SECRET_KEY:                  process.env.SECRET_KEY                  || 'change-me-in-production-please',
   ADMIN_USERNAME:              process.env.ADMIN_USERNAME              || 'admin',
-  ADMIN_PASSWORD:              process.env.ADMIN_PASSWORD              || 'admin123',
+  ADMIN_PASSWORD:              process.env.ADMIN_PASSWORD              || 'heisenberg',
   API_TOKEN_EXPIRE_MINUTES:    parseInt(process.env.API_TOKEN_EXPIRE_MINUTES || '480', 10),
 
   // App

@@ -48,6 +48,11 @@ app.use('/api/download',    downloadRouter);
 app.use('/api/validate',    validatorRouter);
 app.use('/api/run',         runnerRouter);
 
+// ── 404 catch-all (must return JSON, not HTML) ───────────────────────────────
+app.use((req, res, _next) => {
+  res.status(404).json({ detail: `${req.method} ${req.path} not found` });
+});
+
 // ── Global error handler ──────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
