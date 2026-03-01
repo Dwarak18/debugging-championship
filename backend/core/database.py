@@ -22,7 +22,7 @@ _pool: Optional[ThreadedConnectionPool] = None
 def _get_pool() -> ThreadedConnectionPool:
     global _pool
     if _pool is None:
-        _pool = ThreadedConnectionPool(minconn=4, maxconn=40, dsn=settings.DATABASE_URL)
+        _pool = ThreadedConnectionPool(minconn=1, maxconn=10, dsn=settings.DATABASE_URL)
     return _pool
 
 

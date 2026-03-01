@@ -176,7 +176,8 @@ async def import_csv(file: UploadFile = File(...)):
 @router.get("/students", dependencies=[Depends(require_admin)])
 def get_all_students():
     """List all students (active and inactive)."""
-    return {"students": list_students(), "total": len(list_students())}
+    students = list_students()
+    return {"students": students, "total": len(students)}
 
 
 @router.put("/students/{username}/reset-password", dependencies=[Depends(require_admin)])

@@ -2,6 +2,8 @@
 Main FastAPI application entry point.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -13,12 +15,23 @@ from core.config import settings
 from core.database import init_db
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: initialise schema once before serving requests
+    init_db()
+    yield
+    # Shutdown: release all pooled DB connections cleanly
+    from core.database import _pool
+    if _pool is not None:
+        _pool.closeall()
+
+
 def create_app() -> FastAPI:
-    init_db()   # ensure tables exist on every startup
     app = FastAPI(
         title="Debugging Championship",
         description="Elite multi-section debugging event platform",
         version="1.0.0",
+        lifespan=lifespan,
         docs_url="/api/docs" if settings.ENV != "production" else None,
         redoc_url="/api/redoc" if settings.ENV != "production" else None,
     )

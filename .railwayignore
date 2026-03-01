@@ -1,0 +1,30 @@
+# .railwayignore — files excluded from Railway build upload
+# This reduces build context size and speeds up deployment.
+
+# Frontend is deployed on Vercel, not Railway
+frontend/
+
+# Docs and setup files not needed at runtime
+*.md
+SETUP.md
+SCORING.md
+DEPLOYMENT_COMPLETE.md
+LICENSE
+
+# Local Docker / nginx config (not used on Railway)
+nginx/
+Dockerfile
+docker-compose.yml
+
+# Python bytecode cache
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Editor / OS files
+.DS_Store
+*.swp
+*.swo
+.env.local

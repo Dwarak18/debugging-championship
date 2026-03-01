@@ -1,0 +1,11 @@
+# Explicit Nixpacks config — speeds up Railway builds by skipping language detection.
+# See https://nixpacks.com/docs/configuration/file
+
+[phases.setup]
+nixPkgs = ["python311", "git"]   # git is required for validator git-clone
+
+[phases.install]
+cmds = ["pip install --no-cache-dir -r requirements.txt"]
+
+[start]
+cmd = "uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1 --proxy-headers"

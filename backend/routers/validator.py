@@ -13,7 +13,11 @@ import os
 import time
 import tempfile
 import shutil
-import resource
+try:
+    import resource as _resource          # Linux/macOS only — not available on Windows
+    _HAS_RESOURCE = True
+except ImportError:
+    _HAS_RESOURCE = False
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -90,13 +94,15 @@ def track_editor_activity(body: EditorActivityRequest, user: dict = Depends(get_
 
 
 def _limit_process_resources() -> None:
-    """Child-process hardening: memory cap + soft CPU limit."""
+    """Child-process hardening: memory cap + soft CPU limit (Linux only)."""
+    if not _HAS_RESOURCE:
+        return
     mem_limit_mb = int(os.getenv("PYTEST_MEMORY_LIMIT_MB", "512"))
     mem_bytes = mem_limit_mb * 1024 * 1024
 
-    resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
+    _resource.setrlimit(_resource.RLIMIT_AS, (mem_bytes, mem_bytes))
     cpu_cap = max(settings.PYTEST_TIMEOUT + 5, 10)
-    resource.setrlimit(resource.RLIMIT_CPU, (cpu_cap, cpu_cap))
+    _resource.setrlimit(_resource.RLIMIT_CPU, (cpu_cap, cpu_cap))
 
 
 @router.post("/section")
@@ -140,7 +146,7 @@ def validate_section(body: ValidateRequest, user: dict = Depends(get_current_use
             )
 
     # ── Clone repo ────────────────────────────────────────────────────────────
-    tmpdir = tempfile.mkdtemp(prefix="dc_validate_")
+    tmpdir = None        # created inside try so finally always cleans it up
     report_path = None
     raw_stdout = ""
     raw_stderr = ""
@@ -162,9 +168,10 @@ def validate_section(body: ValidateRequest, user: dict = Depends(get_current_use
         "tab_switches": 0,
         "window_blur_seconds": 0.0,
     }
-    child_cpu_before = resource.getrusage(resource.RUSAGE_CHILDREN)
-    child_mem_before_kb = child_cpu_before.ru_maxrss
+    child_cpu_before = _resource.getrusage(_resource.RUSAGE_CHILDREN) if _HAS_RESOURCE else None
+    child_mem_before_kb = child_cpu_before.ru_maxrss if child_cpu_before else 0
     try:
+        tmpdir = tempfile.mkdtemp(prefix="dc_validate_")
         # Disable all credential helpers so git never hangs waiting for
         # a username/password prompt — only works with public repos.
         clone_env = {
@@ -232,7 +239,8 @@ def validate_section(body: ValidateRequest, user: dict = Depends(get_current_use
         raw_stderr = run_result.stderr or ""
 
     finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        if tmpdir:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
     # ── Parse report ──────────────────────────────────────────────────────────
     try:
@@ -249,15 +257,19 @@ def validate_section(body: ValidateRequest, user: dict = Depends(get_current_use
     skipped = summary.get("skipped", 0)
     collected = summary.get("collected", total)
 
-    child_cpu_after = resource.getrusage(resource.RUSAGE_CHILDREN)
-    cpu_time_delta = (
-        (child_cpu_after.ru_utime + child_cpu_after.ru_stime)
-        - (child_cpu_before.ru_utime + child_cpu_before.ru_stime)
-    )
-    cpu_usage_percent = round((cpu_time_delta / duration) * 100, 2) if duration > 0 else 0.0
-    mem_after_kb = child_cpu_after.ru_maxrss
-    mem_delta_kb = max(mem_after_kb - child_mem_before_kb, 0)
-    memory_usage_mb = round(mem_delta_kb / 1024.0, 2)
+    child_cpu_after = _resource.getrusage(_resource.RUSAGE_CHILDREN) if _HAS_RESOURCE else None
+    if _HAS_RESOURCE and child_cpu_after and child_cpu_before:
+        cpu_time_delta = (
+            (child_cpu_after.ru_utime + child_cpu_after.ru_stime)
+            - (child_cpu_before.ru_utime + child_cpu_before.ru_stime)
+        )
+        cpu_usage_percent = round((cpu_time_delta / duration) * 100, 2) if duration > 0 else 0.0
+        mem_after_kb = child_cpu_after.ru_maxrss
+        mem_delta_kb = max(mem_after_kb - child_mem_before_kb, 0)
+        memory_usage_mb = round(mem_delta_kb / 1024.0, 2)
+    else:
+        cpu_usage_percent = 0.0
+        memory_usage_mb = 0.0
 
     max_pts = SECTION_POINTS[body.section]
     score   = round((passed / total * max_pts) if total else 0, 2)

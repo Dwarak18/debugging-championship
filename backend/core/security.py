@@ -15,18 +15,40 @@ from core.config import settings
 
 # ── Password hashing (PBKDF2-SHA256, no external deps) ───────────────────────
 
+_PBKDF2_ITERS = 150_000   # OWASP minimum is 120k; 260k was unnecessarily slow for a competition
+
+
 def hash_password(password: str) -> str:
-    """Hash a password with a random salt using PBKDF2-SHA256."""
+    """Hash a password with a random salt using PBKDF2-SHA256.
+    
+    Format: pbkdf2:sha256:{iterations}:{salt}:{hex-digest}
+    Iteration count is stored in the hash so it can be changed without
+    invalidating existing passwords.
+    """
     salt = os.urandom(16).hex()
-    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260_000)
-    return f"pbkdf2:sha256:{salt}:{h.hex()}"
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), _PBKDF2_ITERS)
+    return f"pbkdf2:sha256:{_PBKDF2_ITERS}:{salt}:{h.hex()}"
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
-    """Verify a plaintext password against a stored hash."""
+    """Verify a plaintext password against a stored hash.
+    
+    Supports both the legacy 4-part format (pbkdf2:sha256:salt:hash) and
+    the current 5-part format (pbkdf2:sha256:iterations:salt:hash).
+    """
     try:
-        _, algo, salt, expected = stored_hash.split(":", 3)
-        h = hashlib.pbkdf2_hmac(algo, password.encode(), salt.encode(), 260_000)
+        parts = stored_hash.split(":", 4)
+        if len(parts) == 5:
+            # New format: pbkdf2:sha256:{iters}:{salt}:{hash}
+            _, algo, iters_str, salt, expected = parts
+            iterations = int(iters_str)
+        elif len(parts) == 4:
+            # Legacy format: pbkdf2:sha256:{salt}:{hash}
+            _, algo, salt, expected = parts
+            iterations = 260_000
+        else:
+            return False
+        h = hashlib.pbkdf2_hmac(algo, password.encode(), salt.encode(), iterations)
         return hmac.compare_digest(h.hex(), expected)
     except Exception:
         return False

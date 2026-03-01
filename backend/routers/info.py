@@ -5,7 +5,7 @@ Info / health router.
 from fastapi import APIRouter, Depends
 from datetime import datetime, timezone, timedelta
 
-from core.database import get_all_section_timers
+from core.database import get_all_section_timers, _conn
 from core.deps import get_current_user
 
 router = APIRouter()
@@ -38,13 +38,14 @@ def info():
 
 @router.get("/ready")
 def ready():
-    """Readiness probe — checks DB is reachable."""
-    from core.database import init_db
+    """Readiness probe — lightweight DB ping (does NOT re-run migrations)."""
+    from fastapi import HTTPException
     try:
-        init_db()
+        with _conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
         return {"status": "ready"}
     except Exception as e:
-        from fastapi import HTTPException
         raise HTTPException(status_code=503, detail=str(e))
 
 
