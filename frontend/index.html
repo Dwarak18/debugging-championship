@@ -1105,15 +1105,14 @@ function renderSectionsGrid() {
   const grid = document.getElementById("sections-grid");
   if (!grid) return;
   const s1Done = SECTION_SCORES[1] > 0;
-  const s2Done = SECTION_SCORES[2] > 0;
-  const s3Done = SECTION_SCORES[3] > 0;
   grid.innerHTML = SECTIONS.map(s => {
-    // Section prerequisite lock (validation gating)
-    const isLocked = s.id > 1 && !s1Done;
-    // Timer state for this section
-    const timerState = SECTION_TIMERS[s.id];
-    const isStarted  = timerState && timerState.is_active;
-    const isSubLocked = timerState && timerState.submissions_locked;
+    const timerState  = SECTION_TIMERS[s.id];
+    const isStarted   = !!(timerState && timerState.is_active);
+    const isSubLocked = !!(timerState && timerState.submissions_locked);
+    // Prereq lock: only lock the card when admin has NOT yet started the section
+    // AND the prerequisite hasn't been met. Admin starting a section always opens it.
+    const prereqMissing = s.id > 1 && !s1Done;
+    const isLocked = prereqMissing && !isStarted;
     return `
     <div class="section-card${isLocked ? ' locked' : ''}">
       <div class="sec-header">
@@ -1129,20 +1128,26 @@ function renderSectionsGrid() {
       ${isLocked
         ? `<span class="lock-badge">Complete &amp; pass Section 1 to unlock this section</span>`
         : isStarted
-          ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+          ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:6px">
                <button class="btn-sm"
                  style="padding:4px 12px;font-size:.73rem;background:var(--surface2);border:1px solid var(--border);
                         color:var(--text);border-radius:6px;cursor:pointer"
-                 onclick="downloadSection(${s.id})"><a style="color:inherit;text-decoration:none">⬇ Download Section ${s.id}</a></button>
-               ${isSubLocked
-                 ? `<span style="font-size:.72rem;font-weight:700;color:var(--red);padding:3px 9px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:20px">🔒 Submissions Closed</span>`
-                 : `<span style="font-size:.72rem;font-weight:700;color:var(--green);padding:3px 9px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:20px">▶ Open</span>`
-               }
+                 onclick="downloadSection(${s.id})">⬇ Download Section ${s.id}</button>
+               <span style="display:flex;align-items:center;gap:6px">
+                 ${isSubLocked
+                   ? `<span style="font-size:.72rem;font-weight:700;color:var(--red);padding:3px 9px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:20px">🔒 Submissions Closed</span>`
+                   : prereqMissing
+                     ? `<span style="font-size:.72rem;font-weight:700;color:var(--amber);padding:3px 9px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:20px">⚡ Pass S1 to submit</span>`
+                     : `<span style="font-size:.72rem;font-weight:700;color:var(--green);padding:3px 9px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:20px">▶ Open</span>`
+                 }
+               </span>
              </div>`
-          : `<div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px">
-               <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted)"></span>
-               Waiting for section to be started by admin…
-             </div>`
+          : prereqMissing
+            ? `<span class="lock-badge">Complete &amp; pass Section 1 to unlock this section</span>`
+            : `<div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted)"></span>
+                 Waiting for section to be started by admin…
+               </div>`
       }
     </div>`;
   }).join("");
