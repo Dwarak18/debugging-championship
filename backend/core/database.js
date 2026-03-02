@@ -8,13 +8,22 @@ const { Pool }  = require('pg');
 const crypto    = require('crypto');
 const config    = require('./config');
 
-const pool = new Pool({
-  connectionString: config.DATABASE_URL,
-  max:                    10,
-  min:                    1,
-  idleTimeoutMillis:      30_000,
-  connectionTimeoutMillis: 5_000,
-});
+const pool = new Pool(
+  config.DATABASE_URL
+    ? {
+        connectionString: config.DATABASE_URL,
+        max:                     10,
+        min:                     1,
+        idleTimeoutMillis:       30_000,
+        connectionTimeoutMillis: 5_000,
+      }
+    : {
+        // No DATABASE_URL — fall back to individual PG* env vars Railway may inject
+        max:                     10,
+        idleTimeoutMillis:       30_000,
+        connectionTimeoutMillis: 5_000,
+      }
+);
 
 // Simple query helper
 async function q(text, params) {

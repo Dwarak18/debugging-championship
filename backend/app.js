@@ -26,7 +26,12 @@ const app = express();
 // ── /api/health MUST be registered BEFORE any async DB work ──────────────────
 // Railway probes this path; it must respond as soon as the process is up.
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', db: dbReady ? 'ready' : 'initialising', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    db: dbReady ? 'ready' : 'initialising',
+    db_error: dbError ? dbError.message : null,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -62,21 +67,22 @@ app.use((err, req, res, next) => {
 });
 
 // ── Start: listen first, then init DB ────────────────────────────────────────
-// Listening before initDb means Railway's healthcheck at /api/health gets a 200
-// immediately. DB init happens in the background; it retries on failure.
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Debugging Championship backend listening on port ${PORT}`);
 
-  // Init DB schema after server is already accepting connections
-  initDb()
-    .then(() => {
-      dbReady = true;
-      console.log('Database ready');
-    })
-    .catch(err => {
-      dbError = err;
-      console.error('Database init failed (will retry on next request):', err.message);
-      // Don't exit — Railway will keep the container alive;
-      // individual requests will fail until the DB becomes reachable.
-    });
+  // Retry initDb every 5 s until it succeeds (handles slow DB provisioning on Railway)
+  const tryInit = () => {
+    initDb()
+      .then(() => {
+        dbReady = true;
+        dbError = null;
+        console.log('Database ready');
+      })
+      .catch(err => {
+        dbError = err;
+        console.error('DB init failed, retrying in 5 s:', err.message);
+        setTimeout(tryInit, 5000);
+      });
+  };
+  tryInit();
 });
