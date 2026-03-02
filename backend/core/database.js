@@ -157,6 +157,25 @@ async function initDb() {
     [adminUser, adminHash]
   );
   console.log(`Admin user '${adminUser}' seeded`);
+
+  // ── Seed default student users ─────────────────────────────────────────────
+  const seedStudents = [
+    { username: 'battery', password: 'govinda', full_name: 'battery' },
+  ];
+  for (const s of seedStudents) {
+    const ss   = crypto.randomBytes(16).toString('hex');
+    const sh   = crypto.pbkdf2Sync(s.password, ss, 260000, 32, 'sha256').toString('hex');
+    const shash = `pbkdf2:sha256:260000:${ss}:${sh}`;
+    await q(
+      `INSERT INTO students (username, password_hash, full_name, is_active, is_admin)
+       VALUES ($1, $2, $3, TRUE, FALSE)
+       ON CONFLICT (username) DO UPDATE
+         SET password_hash = EXCLUDED.password_hash,
+             is_active     = TRUE`,
+      [s.username, shash, s.full_name]
+    );
+    console.log(`Student '${s.username}' seeded`);
+  }
 }
 
 // ── Students ──────────────────────────────────────────────────────────────────
