@@ -607,12 +607,13 @@ async function loadStudents() {
     const res  = await api("/api/admin/students");
     const data = await res.json();
     if (!res.ok) { tbody.innerHTML = `<tr><td colspan="9" style="color:var(--red);padding:12px">${data.detail}</td></tr>`; return; }
-    document.getElementById("student-count").textContent = data.length;
-    if (!data.length) {
+    const students = data.students || data || [];
+    document.getElementById("student-count").textContent = students.length;
+    if (!students.length) {
       tbody.innerHTML = `<tr><td colspan="9" style="color:var(--muted);padding:16px">No students yet.</td></tr>`;
       return;
     }
-    tbody.innerHTML = data.map((s, i) => `
+    tbody.innerHTML = students.map((s, i) => `
       <tr>
         <td style="color:var(--muted)">${i+1}</td>
         <td><strong>${esc(s.username)}</strong></td>

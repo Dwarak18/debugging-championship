@@ -13,8 +13,11 @@ const SECTION_DIRS = {
   4: 'section4-logical-tracing',
 };
 
-const EXCLUDE_FILES = new Set(['hints.md', 'hints.txt', 'solutions.py', 'summary.md']);
+const EXCLUDE_FILES = new Set(['hints.md', 'hints.txt', 'solutions.py', 'summary.md', 'solutions.md']);
 const EXCLUDE_DIRS  = new Set(['__pycache__', '.pytest_cache']);
+
+// Pre-built zips live at backend/downloads/  (bundled with the backend deployment)
+const PREBUILT_DIR = path.join(__dirname, '..', 'downloads');
 
 // GET /api/download/section/:id?token=...
 router.get('/section/:id', (req, res) => {
@@ -26,23 +29,34 @@ router.get('/section/:id', (req, res) => {
   const sectionId = parseInt(req.params.id, 10);
   if (!SECTION_DIRS[sectionId]) return res.status(404).json({ detail: 'Section not found' });
 
-  const sectionDir = path.join(config.REPO_ROOT, SECTION_DIRS[sectionId]);
-  if (!fs.existsSync(sectionDir)) {
-    console.error(`[download] Section dir not found: ${sectionDir} (REPO_ROOT=${config.REPO_ROOT})`);
-    return res.status(500).json({ detail: `Section directory not found on server (${sectionDir})` });
+  const dirName = SECTION_DIRS[sectionId];
+  const zipName = `${dirName}.zip`;
+
+  // ── 1. Serve pre-built zip if present (always available, deployed with backend)
+  const prebuiltPath = path.join(PREBUILT_DIR, zipName);
+  if (fs.existsSync(prebuiltPath)) {
+    console.log(`[download] serving pre-built zip: ${prebuiltPath}`);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return fs.createReadStream(prebuiltPath).pipe(res);
   }
 
-  const zipName = `${SECTION_DIRS[sectionId]}.zip`;
+  // ── 2. Fall back: build on the fly from repo (when REPO_ROOT is available)
+  const sectionDir = path.join(config.REPO_ROOT, dirName);
+  if (!fs.existsSync(sectionDir)) {
+    console.error(`[download] neither pre-built zip nor section dir found.`);
+    console.error(`  pre-built: ${prebuiltPath}`);
+    console.error(`  on-the-fly: ${sectionDir} (REPO_ROOT=${config.REPO_ROOT})`);
+    return res.status(500).json({ detail: 'Section files not found on server. Please contact the administrator.' });
+  }
+
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
   res.setHeader('Cache-Control', 'no-store');
 
   const archive = archiver('zip', { zlib: { level: 6 } });
-  archive.on('error', err => {
-    console.error('[download] archiver error', err);
-    // Headers already sent — just destroy the connection
-    res.destroy();
-  });
+  archive.on('error', err => { console.error('[download] archiver error', err); res.destroy(); });
   archive.pipe(res);
 
   function addDir(dir, baseInZip) {
@@ -50,19 +64,15 @@ router.get('/section/:id', (req, res) => {
       if (EXCLUDE_DIRS.has(entry.name)) continue;
       const full = path.join(dir, entry.name);
       const rel  = path.join(baseInZip, entry.name);
-      if (entry.isDirectory()) {
-        addDir(full, rel);
-      } else {
+      if (entry.isDirectory()) { addDir(full, rel); }
+      else {
         if (EXCLUDE_FILES.has(entry.name.toLowerCase())) continue;
         if (entry.name.endsWith('.pyc')) continue;
         archive.file(full, { name: rel });
       }
     }
   }
-
-  const parentDir  = path.dirname(sectionDir);
-  const folderName = path.basename(sectionDir);
-  addDir(sectionDir, folderName);
+  addDir(sectionDir, dirName);
   archive.finalize();
 });
 
