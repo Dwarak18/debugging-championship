@@ -1,10 +1,9 @@
 'use strict';
 
 module.exports = {
-  // Database — Railway Postgres plugin injects DATABASE_URL automatically.
-  // Set DATABASE_URL in Railway dashboard → backend service → Variables.
-  // Use ${{Postgres.DATABASE_URL}} to reference the Postgres plugin directly.
-  DATABASE_URL: (process.env.DATABASE_URL || '')
+  // Database — internal Railway Postgres URL (only reachable inside Railway containers)
+  DATABASE_URL: (process.env.DATABASE_URL ||
+    'postgresql://postgres:UTAsljNdUgJsRyKgwpLpdchFtGBiAdUh@postgres.railway.internal:5432/railway')
     .replace(/^postgres:\/\//, 'postgresql://'),
 
 
