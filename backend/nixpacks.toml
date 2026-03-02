@@ -5,7 +5,11 @@
 nixPkgs = ["nodejs_20", "git", "python311"]
 
 [phases.install]
-cmds = ["npm install --omit=dev"]
+cmds = [
+  "npm install --omit=dev",
+  "python3 -m pip install --upgrade pip --quiet",
+  "python3 -m pip install pytest pytest-json-report pytest-timeout --quiet"
+]
 
 [start]
 cmd = "node app.js"

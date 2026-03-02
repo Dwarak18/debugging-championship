@@ -4,3 +4,8 @@ pydantic==2.10.6
 python-multipart==0.0.20
 python-dotenv==1.0.1
 psycopg2-binary==2.9.10
+
+# Test runner (used by Node validator to run pytest in cloned repos)
+pytest>=8.0
+pytest-json-report>=1.5
+pytest-timeout>=2.3

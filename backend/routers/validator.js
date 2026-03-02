@@ -56,11 +56,16 @@ function gitClone(url, dest) {
 function runPytest(testPath, reportPath, cwd) {
   return new Promise((resolve, reject) => {
     const timeoutMs = (config.PYTEST_TIMEOUT + 30) * 1000;
-    const proc = spawn('python3', [
+    // Try python3 first; fall back to python if not found
+    const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const proc = spawn(pyCmd, [
       '-m', 'pytest', testPath,
       '--json-report', `--json-report-file=${reportPath}`,
-      '--tb=no', '-q', `--timeout=${config.PYTEST_TIMEOUT}`,
+      '--tb=short', '-q', `--timeout=${config.PYTEST_TIMEOUT}`,
     ], { cwd });
+
+    let stderr = '';
+    proc.stderr.on('data', d => { stderr += d.toString(); });
 
     let killed = false;
     const timer = setTimeout(() => {
@@ -68,8 +73,27 @@ function runPytest(testPath, reportPath, cwd) {
       reject(Object.assign(new Error('pytest timed out'), { status: 408 }));
     }, timeoutMs);
 
-    proc.on('close', () => { clearTimeout(timer); if (!killed) resolve(); });
-    proc.on('error', err => { clearTimeout(timer); reject(err); });
+    proc.on('close', code => {
+      clearTimeout(timer);
+      if (killed) return;
+      // pytest exits 1 if tests fail, 2 if interrupted, 5 if no tests collected
+      // All are acceptable as long as the report file exists
+      if (!fs.existsSync(reportPath)) {
+        reject(Object.assign(
+          new Error(`pytest produced no report (exit ${code}). stderr: ${stderr.slice(0,600).trim()}`),
+          { status: 500 }
+        ));
+      } else {
+        resolve();
+      }
+    });
+    proc.on('error', err => {
+      clearTimeout(timer);
+      reject(Object.assign(
+        new Error(`Failed to spawn pytest: ${err.message}. Is pytest installed?`),
+        { status: 500 }
+      ));
+    });
   });
 }
 
@@ -183,9 +207,16 @@ router.post('/section', requireAuth, async (req, res, next) => {
     // ── Parse report ───────────────────────────────────────────────────────
     let report;
     try {
-      report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-    } catch {
-      return res.status(500).json({ detail: 'Could not parse pytest report' });
+      const raw = fs.readFileSync(reportPath, 'utf8');
+      report = JSON.parse(raw);
+    } catch (e) {
+      const exists = reportPath && fs.existsSync(reportPath);
+      const preview = exists ? fs.readFileSync(reportPath, 'utf8').slice(0, 300) : '(file missing)';
+      console.error('[validator] pytest report parse error:', e.message, '| file preview:', preview);
+      return res.status(500).json({
+        detail: `Could not parse pytest report: ${e.message}. Make sure pytest-json-report is installed on the server.`,
+        debug: preview,
+      });
     }
 
     const summary   = report.summary || {};
