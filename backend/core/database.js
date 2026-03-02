@@ -4,8 +4,9 @@
  * All queries are async/await.
  */
 
-const { Pool } = require('pg');
-const config   = require('./config');
+const { Pool }  = require('pg');
+const crypto    = require('crypto');
+const config    = require('./config');
 
 const pool = new Pool({
   connectionString: config.DATABASE_URL,
@@ -137,6 +138,25 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_eal_event ON editor_activity_logs(event);
   `);
   console.log('Database schema initialised');
+
+  // ── Seed admin user ────────────────────────────────────────────────────────
+  // Reads ADMIN_USERNAME / ADMIN_PASSWORD from env (defaults: admin / heisenberg)
+  // Uses ON CONFLICT so it only updates when credentials change.
+  const adminUser = process.env.ADMIN_USERNAME || 'admin';
+  const adminPass = process.env.ADMIN_PASSWORD || 'heisenberg';
+  const salt      = crypto.randomBytes(16).toString('hex');
+  const hash      = crypto.pbkdf2Sync(adminPass, salt, 260000, 32, 'sha256').toString('hex');
+  const adminHash = `pbkdf2:sha256:260000:${salt}:${hash}`;
+  await q(
+    `INSERT INTO students (username, password_hash, full_name, is_active, is_admin)
+     VALUES ($1, $2, 'Administrator', TRUE, TRUE)
+     ON CONFLICT (username) DO UPDATE
+       SET password_hash = EXCLUDED.password_hash,
+           is_active     = TRUE,
+           is_admin      = TRUE`,
+    [adminUser, adminHash]
+  );
+  console.log(`Admin user '${adminUser}' seeded`);
 }
 
 // ── Students ──────────────────────────────────────────────────────────────────
