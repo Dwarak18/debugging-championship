@@ -297,6 +297,15 @@
     .sec-pick-btn:hover  { border-color: var(--accent); }
     .sec-pick-btn.active { border-color: var(--accent); background: rgba(99,102,241,.1); }
     .sec-pick-btn .pts   { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+    .sec-pick-btn.sub-locked { border-color: rgba(239,68,68,.35) !important; background: rgba(239,68,68,.05) !important; cursor: not-allowed; }
+    .sec-pick-btn.waiting    { opacity: .55; cursor: not-allowed; }
+    .val-sec-status {
+      margin-bottom: 12px; padding: 9px 13px; border-radius: 8px;
+      font-size: .82rem; font-weight: 600; display: flex; align-items: center; gap: 8px;
+    }
+    .val-sec-status.open   { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
+    .val-sec-status.locked { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: var(--red); }
+    .val-sec-status.waiting{ background: rgba(100,116,139,.1);border: 1px solid rgba(100,116,139,.3);color: var(--muted); }
 
     .run-btn {
       width: 100%; padding: 13px; margin-top: 14px;
@@ -888,6 +897,7 @@
         </div>
         <div class="card">
           <div class="card-title">Repository URL</div>
+          <div id="val-section-status" class="val-sec-status waiting" style="display:none"></div>
           <div class="form-group">
             <label>Public GitHub Repo URL</label>
             <input id="github-url" type="url"
@@ -1164,6 +1174,10 @@ async function loadTimers() {
       };
     });
     if (document.getElementById("sections-grid")) renderSectionsGrid();
+    // Refresh validator picker live if on that page
+    if (document.getElementById("page-validator")?.classList.contains("active")) {
+      refreshValidatorPicker();
+    }
   } catch {}
 }
 
@@ -1303,7 +1317,7 @@ async function loadDashboardScores() {
 var _lockErrTs = 0;
 function showLockError(secId) {
   const now = Date.now();
-  if (now - _lockErrTs < 3000) return; // debounce — max one toast per 3s
+  if (now - _lockErrTs < 3000) return;
   _lockErrTs = now;
   showToast(`🔒 Section ${secId} is locked — pass Section 1 first.`, 'warn');
 }
@@ -1322,26 +1336,138 @@ function downloadSection(secId) {
 // ── Validator ──────────────────────────────────────────────────────────────
 function buildValidatorPicker() {
   const s1Done = SECTION_SCORES[1] > 0;
+  let firstOpen = null;
   document.getElementById("val-pick").innerHTML = SECTIONS.map(s => {
-    const locked = s.id > 1 && !s1Done;
-    return `
-    <button class="sec-pick-btn ${s.id===1?'active':''} ${locked?'locked-btn':''}"
-            onclick="${locked ? `showLockError(${s.id})` : `selValSection(${s.id},this)`}">
-      <strong>${locked?'🔒 ':''}Section ${s.id}: ${s.title}</strong>
-      <div class="pts">${locked
-        ? '<span style="color:var(--red);font-size:.72rem">🔒 Complete Section 1 to unlock</span>'
-        : `🏆 ${s.points} pts`}</div>
-      <div class="pts" id="val-timer-${s.id}" style="color:var(--yellow)"></div>
-    </button>`;
+    const timer       = SECTION_TIMERS[s.id];
+    const isOpen      = !!(timer && timer.is_active && !timer.submissions_locked);
+    const isSubLocked = !!(timer && timer.submissions_locked);
+    const notStarted  = !timer || !timer.is_active;
+    const prereqBlock = s.id > 1 && !s1Done && notStarted;
+    if (isOpen && !firstOpen) firstOpen = s.id;
+
+    let stateClass, stateLabel, onclick;
+    if (isOpen) {
+      stateClass = ''; onclick = "selValSection(" + s.id + ",this)";
+      stateLabel = '<span style="color:var(--green);font-size:.72rem">&#9654; Open &mdash; Submit Now</span>';
+    } else if (isSubLocked) {
+      stateClass = 'locked-btn sub-locked';
+      onclick    = "showSectionValError(" + s.id + ",'locked')";
+      stateLabel = '<span style="color:var(--red);font-size:.72rem">&#128274; Submissions Closed</span>';
+    } else if (prereqBlock) {
+      stateClass = 'locked-btn';
+      onclick    = "showSectionValError(" + s.id + ",'prereq')";
+      stateLabel = '<span style="color:var(--red);font-size:.72rem">&#128274; Complete Section 1 to unlock</span>';
+    } else {
+      stateClass = 'locked-btn waiting';
+      onclick    = "showSectionValError(" + s.id + ",'waiting')";
+      stateLabel = '<span style="color:var(--muted);font-size:.72rem">&#9203; Waiting for admin to open</span>';
+    }
+    const prefix = isOpen ? '' : (isSubLocked || prereqBlock) ? '🔒 ' : '⏳ ';
+    return '<button class="sec-pick-btn ' + stateClass + '" onclick="' + onclick + '" data-sec="' + s.id + '">'
+      + '<strong>' + prefix + 'Section ' + s.id + ': ' + s.title + '</strong>'
+      + '<div class="pts">' + stateLabel + '</div>'
+      + '<div class="pts" id="val-timer-' + s.id + '" style="color:var(--yellow)"></div>'
+      + '</button>';
   }).join("");
-  VAL_SEC = 1;
+  VAL_SEC = firstOpen || 1;
+  const activeBtn = document.querySelector('#val-pick .sec-pick-btn[data-sec="' + VAL_SEC + '"]');
+  if (activeBtn) activeBtn.classList.add('active');
+  updateValSectionStatus();
+}
+
+// Live refresh without hard-resetting VAL_SEC — called on every timer poll
+function refreshValidatorPicker() {
+  if (!document.querySelector('#val-pick .sec-pick-btn[data-sec]')) { buildValidatorPicker(); return; }
+  const s1Done = SECTION_SCORES[1] > 0;
+  let hasAnyOpen = false;
+  SECTIONS.forEach(s => {
+    const btn = document.querySelector('#val-pick .sec-pick-btn[data-sec="' + s.id + '"]');
+    if (!btn) return;
+    const timer       = SECTION_TIMERS[s.id];
+    const isOpen      = !!(timer && timer.is_active && !timer.submissions_locked);
+    const isSubLocked = !!(timer && timer.submissions_locked);
+    const notStarted  = !timer || !timer.is_active;
+    const prereqBlock = s.id > 1 && !s1Done && notStarted;
+    if (isOpen) hasAnyOpen = true;
+
+    btn.classList.remove('locked-btn','sub-locked','waiting');
+    let stateLabel, onclick;
+    if (isOpen) {
+      onclick    = "selValSection(" + s.id + ",this)";
+      stateLabel = '<span style="color:var(--green);font-size:.72rem">&#9654; Open &mdash; Submit Now</span>';
+    } else if (isSubLocked) {
+      btn.classList.add('locked-btn','sub-locked');
+      onclick    = "showSectionValError(" + s.id + ",'locked')";
+      stateLabel = '<span style="color:var(--red);font-size:.72rem">&#128274; Submissions Closed</span>';
+    } else if (prereqBlock) {
+      btn.classList.add('locked-btn');
+      onclick    = "showSectionValError(" + s.id + ",'prereq')";
+      stateLabel = '<span style="color:var(--red);font-size:.72rem">&#128274; Complete Section 1 to unlock</span>';
+    } else {
+      btn.classList.add('locked-btn','waiting');
+      onclick    = "showSectionValError(" + s.id + ",'waiting')";
+      stateLabel = '<span style="color:var(--muted);font-size:.72rem">&#9203; Waiting for admin to open</span>';
+    }
+    btn.setAttribute('onclick', onclick);
+    const ptsEl = btn.querySelectorAll('.pts')[0];
+    if (ptsEl) ptsEl.innerHTML = stateLabel;
+    const prefix = isOpen ? '' : (isSubLocked || prereqBlock) ? '🔒 ' : '⏳ ';
+    const strEl  = btn.querySelector('strong');
+    if (strEl) strEl.textContent = prefix + 'Section ' + s.id + ': ' + s.title;
+  });
+  // If current VAL_SEC got locked/stopped, auto-switch to first open
+  const curTimer = SECTION_TIMERS[VAL_SEC];
+  const curOpen  = !!(curTimer && curTimer.is_active && !curTimer.submissions_locked);
+  if (!curOpen && hasAnyOpen) {
+    const first = SECTIONS.find(s => { const t = SECTION_TIMERS[s.id]; return !!(t && t.is_active && !t.submissions_locked); });
+    if (first) {
+      VAL_SEC = first.id;
+      document.querySelectorAll("#val-pick .sec-pick-btn").forEach(b => b.classList.remove('active'));
+      const b = document.querySelector('#val-pick .sec-pick-btn[data-sec="' + VAL_SEC + '"]');
+      if (b) b.classList.add('active');
+    }
+  }
+  updateValSectionStatus();
+}
+
+function updateValSectionStatus() {
+  const el = document.getElementById('val-section-status');
+  if (!el) return;
+  const timer       = SECTION_TIMERS[VAL_SEC];
+  const isOpen      = !!(timer && timer.is_active && !timer.submissions_locked);
+  const isSubLocked = !!(timer && timer.submissions_locked);
+  el.className = 'val-sec-status';
+  el.style.display = '';
+  if (isOpen) {
+    el.classList.add('open');
+    el.innerHTML = '&#9654;&#65039; <strong>Section ' + VAL_SEC + ' is open</strong> &mdash; submissions accepted.';
+  } else if (isSubLocked) {
+    el.classList.add('locked');
+    el.innerHTML = '&#128274; <strong>Section ' + VAL_SEC + ' submissions are locked</strong> by the admin. No scores will be recorded.';
+  } else {
+    el.classList.add('waiting');
+    el.innerHTML = '&#9203; <strong>Section ' + VAL_SEC + ' has not been opened</strong> by the admin yet.';
+  }
+}
+
+var _secValErrTs = 0;
+function showSectionValError(secId, reason) {
+  const now = Date.now();
+  if (now - _secValErrTs < 2500) return;
+  _secValErrTs = now;
+  if (reason === 'locked')      showToast('🔒 Section ' + secId + ' submissions are closed.', 'warn');
+  else if (reason === 'prereq') showToast('🔒 Section ' + secId + ' — complete Section 1 first.', 'warn');
+  else                          showToast('⏳ Section ' + secId + ' hasn\'t been opened by the admin yet.', 'info');
 }
 
 function selValSection(id, el) {
-  if (id > 1 && SECTION_SCORES[1] <= 0) { showLockError(id); return; }
+  const timer  = SECTION_TIMERS[id];
+  const isOpen = !!(timer && timer.is_active && !timer.submissions_locked);
+  if (!isOpen) { showSectionValError(id, timer && timer.submissions_locked ? 'locked' : 'waiting'); return; }
   VAL_SEC = id;
   document.querySelectorAll("#val-pick .sec-pick-btn").forEach(b=>b.classList.remove("active"));
   el.classList.add("active");
+  updateValSectionStatus();
 }
 
 async function runValidation() {
