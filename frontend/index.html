@@ -1142,12 +1142,16 @@ function renderSectionsGrid() {
                  }
                </span>
              </div>`
-          : prereqMissing
-            ? `<span class="lock-badge">Complete &amp; pass Section 1 to unlock this section</span>`
-            : `<div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px">
-                 <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted)"></span>
-                 Waiting for section to be started by admin…
+          : isSubLocked
+            ? `<div style="margin-top:10px;display:flex;align-items:center;gap:6px">
+                 <span style="font-size:.78rem;font-weight:700;color:var(--red);padding:3px 9px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:20px">🔒 Section Closed — Submissions are locked</span>
                </div>`
+            : prereqMissing
+              ? `<span class="lock-badge">Complete &amp; pass Section 1 to unlock this section</span>`
+              : `<div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+                   <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted)"></span>
+                   Waiting for section to be started by admin…
+                 </div>`
       }
     </div>`;
   }).join("");

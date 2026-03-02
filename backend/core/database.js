@@ -326,14 +326,15 @@ async function resetLeaderboard() {
 async function setSectionTimer(section, durationMinutes, startTime = null) {
   const st = startTime || new Date();
   await q(`
-    INSERT INTO section_timers (section,duration_minutes,start_time,is_active,paused_at,elapsed_seconds)
-    VALUES ($1,$2,$3,TRUE,NULL,0)
+    INSERT INTO section_timers (section,duration_minutes,start_time,is_active,paused_at,elapsed_seconds,submissions_locked)
+    VALUES ($1,$2,$3,TRUE,NULL,0,FALSE)
     ON CONFLICT (section) DO UPDATE SET
-      duration_minutes = $2,
-      start_time       = $3,
-      is_active        = TRUE,
-      paused_at        = NULL,
-      elapsed_seconds  = 0
+      duration_minutes   = $2,
+      start_time         = $3,
+      is_active          = TRUE,
+      paused_at          = NULL,
+      elapsed_seconds    = 0,
+      submissions_locked = FALSE
   `, [section, durationMinutes, st]);
 }
 
@@ -355,7 +356,7 @@ async function resumeSectionTimer(section) {
 }
 
 async function stopSectionTimer(section) {
-  await q(`UPDATE section_timers SET is_active=FALSE, paused_at=NULL WHERE section=$1`, [section]);
+  await q(`UPDATE section_timers SET is_active=FALSE, paused_at=NULL, submissions_locked=TRUE WHERE section=$1`, [section]);
 }
 
 async function resetSectionTimer(section) {
