@@ -27,14 +27,22 @@ router.get('/section/:id', (req, res) => {
   if (!SECTION_DIRS[sectionId]) return res.status(404).json({ detail: 'Section not found' });
 
   const sectionDir = path.join(config.REPO_ROOT, SECTION_DIRS[sectionId]);
-  if (!fs.existsSync(sectionDir)) return res.status(500).json({ detail: 'Section directory not found on server' });
+  if (!fs.existsSync(sectionDir)) {
+    console.error(`[download] Section dir not found: ${sectionDir} (REPO_ROOT=${config.REPO_ROOT})`);
+    return res.status(500).json({ detail: `Section directory not found on server (${sectionDir})` });
+  }
 
   const zipName = `${SECTION_DIRS[sectionId]}.zip`;
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+  res.setHeader('Cache-Control', 'no-store');
 
   const archive = archiver('zip', { zlib: { level: 6 } });
-  archive.on('error', err => res.status(500).json({ detail: err.message }));
+  archive.on('error', err => {
+    console.error('[download] archiver error', err);
+    // Headers already sent — just destroy the connection
+    res.destroy();
+  });
   archive.pipe(res);
 
   function addDir(dir, baseInZip) {

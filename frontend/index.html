@@ -919,6 +919,8 @@ function showApp() {
   buildDashboard();
   loadDashboardScores();
   loadTimers().then(startTimerTick);
+  // Poll timer state every 20s so download buttons auto-enable when admin starts a section
+  setInterval(() => loadTimers(), 20000);
   // Pre-fill GitHub username if saved
   const ghInput = document.getElementById("github-username-input");
   if (ghInput && GITHUB_USERNAME) {
