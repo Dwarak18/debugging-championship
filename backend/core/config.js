@@ -1,10 +1,7 @@
 'use strict';
 
 module.exports = {
-  // Database — internal Railway Postgres URL (only reachable inside Railway containers)
-  DATABASE_URL: (process.env.DATABASE_URL ||
-    'postgresql://postgres:UTAsljNdUgJsRyKgwpLpdchFtGBiAdUh@postgres.railway.internal:5432/railway')
-    .replace(/^postgres:\/\//, 'postgresql://'),
+  DATABASE_URL: (process.env.DATABASE_URL || '').replace(/^postgres:\/\//, 'postgresql://'),
 
 
   // Auth
