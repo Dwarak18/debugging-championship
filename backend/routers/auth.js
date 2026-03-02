@@ -25,15 +25,41 @@ function verifyGithubUser(username) {
 }
 
 // POST /api/auth/login
+// Accepts team_id + password (teams table) OR legacy username + password (students table)
 router.post('/login', async (req, res, next) => {
   try {
     const { username, password } = req.body;
     if (!username || !password)
-      return res.status(400).json({ detail: 'username and password required' });
+      return res.status(400).json({ detail: 'Team ID and password required' });
 
+    // ── Try team login first ───────────────────────────────────────────────
+    const team = await db.getTeam(username.trim());
+    if (team && verifyPassword(password, team.password_hash)) {
+      const token = createAccessToken({
+        sub:       team.team_id,
+        is_admin:  false,
+        full_name: team.team_name,
+        college:   team.college || '',
+        team:      team.team_id,
+        team_id:   team.team_id,
+        team_name: team.team_name,
+      });
+      return res.json({
+        access_token: token, token_type: 'bearer',
+        username:   team.team_id,
+        full_name:  team.team_name,
+        college:    team.college || '',
+        team:       team.team_id,
+        team_id:    team.team_id,
+        team_name:  team.team_name,
+        is_admin:   false,
+      });
+    }
+
+    // ── Fall back to student / admin login ────────────────────────────────
     const student = await db.getStudent(username);
     if (!student || !verifyPassword(password, student.password_hash))
-      return res.status(401).json({ detail: 'Invalid username or password' });
+      return res.status(401).json({ detail: 'Invalid Team ID or password' });
 
     await db.updateLastLogin(username);
     const isAdmin = !!student.is_admin;

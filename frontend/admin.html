@@ -298,6 +298,7 @@
     <span class="admin-tag">ADMIN</span>
     <nav>
       <button class="nav-btn active" onclick="showPage('overview',this)">📊 Overview</button>
+      <button class="nav-btn" onclick="showPage('teams',this);loadTeams()">🏷 Teams</button>
       <button class="nav-btn" onclick="showPage('students',this);loadStudents()">👥 Students</button>
       <button class="nav-btn" onclick="showPage('timers',this);loadTimers()">⏱ Timers</button>
       <button class="nav-btn" onclick="showPage('leaderboard',this);loadLeaderboard()">🏆 Leaderboard</button>
@@ -409,6 +410,68 @@
       </div>
     </div>
 
+    <!-- ── Teams ──────────────────────────────────────── -->
+    <div class="page" id="page-teams">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <h2 style="font-size:1.1rem">🏷 Teams</h2>
+        <button class="btn" style="border:1px solid var(--border);color:var(--muted);font-size:.78rem;padding:6px 12px" onclick="loadTeams()">↻ Refresh</button>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px">
+        <!-- Create Team -->
+        <div class="card">
+          <div class="card-title">Create Team</div>
+          <div class="form-group"><label>Team ID * <span style="color:var(--muted);font-size:.73rem">(unique identifier, e.g. T001)</span></label><input id="t-id" placeholder="T001"/></div>
+          <div class="form-group"><label>Team Name *</label><input id="t-name" placeholder="Team Alpha"/></div>
+          <div class="form-group"><label>Password *</label><input id="t-pass" type="password" placeholder="TeamSecret@1"/></div>
+          <div class="form-group"><label>College</label><input id="t-college" placeholder="MIT"/></div>
+          <button class="btn btn-accent" onclick="createTeam()">+ Create Team</button>
+          <div id="team-create-msg"></div>
+        </div>
+
+        <!-- Bulk Import -->
+        <div class="card">
+          <div class="card-title">Bulk Import — JSON</div>
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Required fields: <strong>team_id, team_name, password</strong>. Optional: college</p>
+          <div class="form-group">
+            <textarea id="team-json" style="min-height:90px;font-family:monospace;font-size:.8rem"
+              placeholder='[{"team_id":"T001","team_name":"Alpha","password":"secret","college":"MIT"}]'></textarea>
+          </div>
+          <button class="btn btn-accent" onclick="importTeamsJSON()">Import JSON</button>
+          <div id="team-json-msg"></div>
+
+          <hr style="margin:14px 0;border-color:var(--border)"/>
+          <div class="card-title">Bulk Import — Excel (.xlsx)</div>
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Columns: team_id, team_name, password (optional: college)</p>
+          <div class="form-group"><input type="file" id="team-xlsx-file" accept=".xlsx,.xls"/></div>
+          <button class="btn btn-accent" onclick="importTeamsXLSX()">Upload Excel</button>
+          <div id="team-xlsx-msg"></div>
+        </div>
+      </div>
+
+      <!-- Teams Table with Live Scores -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="card-title" style="margin-bottom:0">All Teams (<span id="team-count">0</span>)
+            <span style="font-size:.7rem;color:var(--green);margin-left:8px" id="team-live-badge">● LIVE</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>#</th><th>Team ID</th><th>Team Name</th><th>College</th>
+                <th><span class="s1">S1</span></th><th><span class="s2">S2</span></th>
+                <th><span class="s3">S3</span></th><th><span class="s4">S4</span></th>
+                <th>Total</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teams-body"><tr><td colspan="10" style="color:var(--muted);padding:16px">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Timers ────────────────────────────────────── -->
     <div class="page" id="page-timers">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
@@ -453,6 +516,22 @@
 
   </div><!-- /content -->
 </div><!-- /app -->
+
+<!-- ── Edit Team Modal ─────────────────────────────── -->
+<div class="modal-overlay" id="team-edit-modal">
+  <div class="modal-box">
+    <h3>Edit Team</h3>
+    <input type="hidden" id="team-edit-id"/>
+    <div class="form-group"><label>Team Name</label><input id="team-edit-name"/></div>
+    <div class="form-group"><label>College</label><input id="team-edit-college"/></div>
+    <div class="form-group"><label>New Password <span style="color:var(--muted);font-size:.73rem">(leave blank to keep current)</span></label>
+      <input id="team-edit-pass" type="password" placeholder="Leave blank to keep current"/></div>
+    <div class="modal-actions">
+      <button class="btn" style="border:1px solid var(--border);color:var(--muted)" onclick="closeModal('team-edit-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveTeamEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Edit Student Modal ──────────────────────────── -->
 <div class="modal-overlay" id="edit-modal">
@@ -570,6 +649,7 @@ function showApp() {
   loadOverview();
   // Start background polling + tick
   startTimerPoll();
+  startTeamLivePoll();
 }
 
 function showPage(name, btn) {
@@ -739,7 +819,7 @@ function closeModal(id) { document.getElementById(id).classList.remove("open"); 
 
 async function saveEdit() {
   const u = document.getElementById("edit-username").value;
-  const res = await api(`/api/admin/students/${u}`,"PATCH",{
+  const res = await api(`/api/admin/students/${u}`,"PUT",{
     full_name: document.getElementById("edit-name").value.trim(),
     email:     document.getElementById("edit-email").value.trim(),
     college:   document.getElementById("edit-college").value.trim(),
@@ -1040,9 +1120,136 @@ function confirmResetLeaderboard() {
 }
 async function doResetLeaderboard() {
   closeModal("reset-modal");
-  const res = await api("/api/admin/leaderboard/reset","DELETE");
+  const res = await api("/api/admin/leaderboard","DELETE");
   if (res.ok) { alert("Scores reset."); loadOverview(); }
   else { const d = await res.json(); alert(d.detail || "Reset failed"); }
+}
+
+// ── Teams ──────────────────────────────────────────────────────────────────
+
+var _teamPollInterval = null;
+
+function startTeamLivePoll() {
+  if (_teamPollInterval) return;
+  _teamPollInterval = setInterval(() => {
+    const onTeamsPage = document.getElementById('page-teams')?.classList.contains('active');
+    if (onTeamsPage) loadTeams(true);
+  }, 5000);
+}
+
+async function loadTeams(silent = false) {
+  const tbody = document.getElementById("teams-body");
+  if (!silent) tbody.innerHTML = `<tr><td colspan="10" style="color:var(--muted);padding:16px">Loading…</td></tr>`;
+  try {
+    const res  = await api("/api/admin/teams");
+    const data = await res.json();
+    if (!res.ok) { tbody.innerHTML = `<tr><td colspan="10" style="color:var(--red);padding:12px">${data.detail}</td></tr>`; return; }
+    const teams = data.teams || [];
+    document.getElementById("team-count").textContent = teams.length;
+    if (!teams.length) {
+      tbody.innerHTML = `<tr><td colspan="10" style="color:var(--muted);padding:16px">No teams yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = teams.map((t, i) => `
+      <tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td><strong style="color:var(--accent)">${esc(t.team_id)}</strong></td>
+        <td>${esc(t.team_name)}</td>
+        <td style="color:var(--muted);font-size:.78rem">${esc(t.college || '—')}</td>
+        <td><span class="s1">${t.section1 || 0}</span></td>
+        <td><span class="s2">${t.section2 || 0}</span></td>
+        <td><span class="s3">${t.section3 || 0}</span></td>
+        <td><span class="s4">${t.section4 || 0}</span></td>
+        <td style="font-weight:800;color:var(--accent)">${t.total_score || 0}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn" style="font-size:.7rem;padding:4px 9px;border:1px solid var(--border);color:var(--muted)"
+              onclick='openTeamEdit(${JSON.stringify({team_id:t.team_id,team_name:t.team_name,college:t.college||""})})'>Edit</button>
+            <button class="btn btn-danger" style="font-size:.7rem;padding:4px 9px"
+              onclick="deleteTeam('${esc(t.team_id)}','${esc(t.team_name)}')">Delete</button>
+          </div>
+        </td>
+      </tr>`).join("");
+  } catch(e) {
+    if (!silent) tbody.innerHTML = `<tr><td colspan="10" style="color:var(--red);padding:12px">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function createTeam() {
+  const tid  = document.getElementById("t-id").value.trim();
+  const tname= document.getElementById("t-name").value.trim();
+  const tpass= document.getElementById("t-pass").value.trim();
+  const msg  = document.getElementById("team-create-msg");
+  if (!tid || !tname || !tpass) { showMsg(msg,"team_id, team_name, and password are required","err"); return; }
+  const res  = await api("/api/admin/teams","POST",{
+    team_id: tid, team_name: tname, password: tpass,
+    college: document.getElementById("t-college").value.trim()
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(msg, `✓ Team "${tname}" (${tid}) created`, "ok");
+    ["t-id","t-name","t-pass","t-college"].forEach(id => document.getElementById(id).value = "");
+    loadTeams();
+  } else { showMsg(msg, data.detail || "Error creating team", "err"); }
+}
+
+function openTeamEdit(t) {
+  document.getElementById("team-edit-id").value      = t.team_id;
+  document.getElementById("team-edit-name").value    = t.team_name || "";
+  document.getElementById("team-edit-college").value = t.college   || "";
+  document.getElementById("team-edit-pass").value    = "";
+  document.getElementById("team-edit-modal").classList.add("open");
+}
+
+async function saveTeamEdit() {
+  const tid   = document.getElementById("team-edit-id").value;
+  const body  = {
+    team_name: document.getElementById("team-edit-name").value.trim(),
+    college:   document.getElementById("team-edit-college").value.trim(),
+  };
+  const pass = document.getElementById("team-edit-pass").value.trim();
+  if (pass) body.password = pass;
+  const res  = await api(`/api/admin/teams/${encodeURIComponent(tid)}`,"PUT",body);
+  if (res.ok) { closeModal("team-edit-modal"); loadTeams(); }
+  else { const d = await res.json(); alert(d.detail || "Save failed"); }
+}
+
+async function deleteTeam(teamId, teamName) {
+  if (!confirm(`Delete team "${teamName}" (${teamId})?\nThis removes the team but keeps leaderboard history.`)) return;
+  const res = await api(`/api/admin/teams/${encodeURIComponent(teamId)}`,"DELETE");
+  if (res.ok) loadTeams();
+  else { const d = await res.json(); alert(d.detail || "Delete failed"); }
+}
+
+async function importTeamsJSON() {
+  const raw = document.getElementById("team-json").value.trim();
+  const msg = document.getElementById("team-json-msg");
+  let teams;
+  try { teams = JSON.parse(raw); if (!Array.isArray(teams)) teams = [teams]; }
+  catch { showMsg(msg,"Invalid JSON — must be an array","err"); return; }
+  const res  = await api("/api/admin/teams/import-json","POST",{ teams });
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(msg, `✓ Created ${data.created}, skipped ${data.skipped}${data.errors ? ', errors '+data.errors : ''}`, "ok");
+    document.getElementById("team-json").value = "";
+    loadTeams();
+  } else { showMsg(msg, data.detail || "Import failed","err"); }
+}
+
+async function importTeamsXLSX() {
+  const file = document.getElementById("team-xlsx-file").files[0];
+  const msg  = document.getElementById("team-xlsx-msg");
+  if (!file) { showMsg(msg,"Select an Excel file","err"); return; }
+  const form = new FormData(); form.append("file", file);
+  const res  = await fetch(API_BASE + "/api/admin/teams/import-xlsx", {
+    method: "POST", headers: { "Authorization": "Bearer " + TOKEN }, body: form,
+  });
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(msg, `✓ ${data.total_rows} rows — created ${data.created}, skipped ${data.skipped}`, "ok");
+    document.getElementById("team-xlsx-file").value = "";
+    loadTeams();
+  } else { showMsg(msg, data.detail || "Excel import failed","err"); }
 }
 
 // ── Utils ──────────────────────────────────────────────────────────────────

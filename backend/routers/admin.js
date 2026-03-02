@@ -2,11 +2,13 @@
 const router  = require('express').Router();
 const multer  = require('multer');
 const { parse } = require('csv-parse/sync');
+let xlsx;
+try { xlsx = require('xlsx'); } catch { xlsx = null; }
 const db      = require('../core/database');
 const { hashPassword } = require('../core/security');
 const { requireAdmin } = require('../middleware/auth');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ── Students ──────────────────────────────────────────────────────────────────
 
@@ -322,6 +324,105 @@ router.get('/activity-monitor/:id', requireAdmin, async (req, res, next) => {
       risk_explanation: (row.risk_flags || []).join(' ; ') || 'No risk flags',
       timeline: [...timeline].reverse(),
     });
+  } catch (err) { next(err); }
+});
+
+// ── Teams CRUD ────────────────────────────────────────────────────────────────
+
+// GET /teams — list all teams with live scores
+router.get('/teams', requireAdmin, async (_req, res, next) => {
+  try {
+    const teams = await db.listTeams();
+    res.json({ teams, total: teams.length });
+  } catch (err) { next(err); }
+});
+
+// POST /teams — create a team
+router.post('/teams', requireAdmin, async (req, res, next) => {
+  try {
+    const { team_id, team_name, password, college='' } = req.body;
+    if (!team_id || !team_name || !password)
+      return res.status(400).json({ detail: 'team_id, team_name, and password are required' });
+    const ok = await db.createTeam({ teamId: team_id.trim(), teamName: team_name.trim(),
+      passwordHash: hashPassword(password), college });
+    if (!ok) return res.status(409).json({ detail: 'Team ID already exists' });
+    res.status(201).json({ message: 'Team created', team_id });
+  } catch (err) { next(err); }
+});
+
+// PUT /teams/:team_id — update name / college / password
+router.put('/teams/:team_id', requireAdmin, async (req, res, next) => {
+  try {
+    const { team_name, college, password } = req.body;
+    const passwordHash = password ? hashPassword(password) : undefined;
+    await db.updateTeam(req.params.team_id, { teamName: team_name, college, passwordHash });
+    res.json({ message: `Team ${req.params.team_id} updated` });
+  } catch (err) { next(err); }
+});
+
+// DELETE /teams/:team_id
+router.delete('/teams/:team_id', requireAdmin, async (req, res, next) => {
+  try {
+    await db.deleteTeam(req.params.team_id);
+    res.json({ message: `Team ${req.params.team_id} deleted` });
+  } catch (err) { next(err); }
+});
+
+// GET /teams/leaderboard — team aggregated scores
+router.get('/teams/leaderboard', requireAdmin, async (_req, res, next) => {
+  try {
+    const rows = await db.getTeamLeaderboard();
+    res.json({ leaderboard: rows, total: rows.length });
+  } catch (err) { next(err); }
+});
+
+// POST /teams/import-json — bulk create teams from JSON array
+router.post('/teams/import-json', requireAdmin, async (req, res, next) => {
+  try {
+    const teams = req.body.teams || req.body;
+    if (!Array.isArray(teams)) return res.status(400).json({ detail: 'Body must be an array or { teams: [...] }' });
+    const created = [], skipped = [], errors = [];
+    for (const t of teams) {
+      if (!t.team_id || !t.team_name || !t.password) { errors.push(t.team_id || '?'); continue; }
+      const ok = await db.createTeam({ teamId: (t.team_id||'').trim(), teamName: (t.team_name||'').trim(),
+        passwordHash: hashPassword(t.password), college: t.college||'' });
+      (ok ? created : skipped).push(t.team_id);
+    }
+    res.json({ created: created.length, skipped: skipped.length, errors: errors.length,
+               created_teams: created, skipped_teams: skipped, error_teams: errors });
+  } catch (err) { next(err); }
+});
+
+// POST /teams/import-xlsx — bulk create teams from Excel file (columns: team_id, team_name, password, college?)
+router.post('/teams/import-xlsx', requireAdmin, upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ detail: 'No file uploaded' });
+    if (!xlsx) return res.status(501).json({ detail: 'xlsx package not installed on server' });
+
+    let rows;
+    try {
+      const wb   = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      rows = xlsx.utils.sheet_to_json(ws, { defval: '' });
+    } catch (e) { return res.status(400).json({ detail: `Excel parse error: ${e.message}` }); }
+
+    if (!rows.length) return res.status(422).json({ detail: 'Spreadsheet is empty' });
+    const first = rows[0];
+    if (!first.team_id || !first.team_name || first.password === undefined)
+      return res.status(422).json({ detail: 'Spreadsheet must have columns: team_id, team_name, password (and optionally college)' });
+
+    const created = [], skipped = [], errors = [];
+    for (const row of rows) {
+      const tid = String(row.team_id||'').trim();
+      const tname = String(row.team_name||'').trim();
+      const pwd = String(row.password||'').trim();
+      if (!tid || !tname || !pwd) { errors.push(tid||'(empty)'); continue; }
+      const ok = await db.createTeam({ teamId: tid, teamName: tname,
+        passwordHash: hashPassword(pwd), college: String(row.college||'').trim() });
+      (ok ? created : skipped).push(tid);
+    }
+    res.json({ total_rows: rows.length, created: created.length, skipped: skipped.length, errors: errors.length,
+               created_teams: created, skipped_teams: skipped, error_teams: errors });
   } catch (err) { next(err); }
 });
 

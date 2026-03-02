@@ -592,10 +592,10 @@
       </div>
 
       <div class="field">
-        <label>Username</label>
+        <label>Team ID</label>
         <div class="login-input-wrap">
-          <span class="input-icon">👤</span>
-          <input id="l-user" type="text" placeholder="your_username" autocomplete="username"
+          <span class="input-icon">🏷</span>
+          <input id="l-user" type="text" placeholder="e.g. T001" autocomplete="username"
                  onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()" />
         </div>
       </div>
@@ -997,7 +997,7 @@ async function doLogin() {
   const p = document.getElementById("l-pass").value;
   const msg = document.getElementById("login-msg");
   const btn = document.getElementById("login-btn");
-  if (!u || !p) { setMsg(msg,"Enter username and password","red"); return; }
+  if (!u || !p) { setMsg(msg,"Enter Team ID and password","red"); return; }
   btn.disabled = true; btn.textContent = "Signing in…";
   try {
     const res  = await api("/api/auth/login", "POST", {username:u, password:p}, false);

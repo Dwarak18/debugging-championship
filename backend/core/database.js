@@ -149,6 +149,15 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_eal_team_time ON editor_activity_logs(team_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_eal_user_time ON editor_activity_logs(username, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_eal_event ON editor_activity_logs(event);
+
+    CREATE TABLE IF NOT EXISTS teams (
+      team_id       TEXT PRIMARY KEY,
+      team_name     TEXT NOT NULL DEFAULT '',
+      password_hash TEXT NOT NULL,
+      college       TEXT DEFAULT '',
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_teams_name ON teams(team_name);
   `);
   console.log('Database schema initialised');
 
@@ -535,6 +544,73 @@ async function listEditorActivityTimeline(teamId, limit = 200) {
   return res.rows;
 }
 
+// ── Teams ─────────────────────────────────────────────────────────────────────
+
+async function createTeam({ teamId, teamName, passwordHash, college='' }) {
+  try {
+    await q(
+      `INSERT INTO teams (team_id, team_name, password_hash, college)
+       VALUES ($1, $2, $3, $4)`,
+      [teamId, teamName, passwordHash, college]
+    );
+    return true;
+  } catch (err) {
+    if (err.code === '23505') return false;
+    throw err;
+  }
+}
+
+async function getTeam(teamId) {
+  const res = await q('SELECT * FROM teams WHERE team_id=$1', [teamId]);
+  return res.rows[0] || null;
+}
+
+async function listTeams() {
+  const res = await q(`
+    SELECT t.team_id, t.team_name, t.college, t.created_at,
+           COALESCE(l.total_score,0) AS total_score,
+           COALESCE(l.section1,0)   AS section1,
+           COALESCE(l.section2,0)   AS section2,
+           COALESCE(l.section3,0)   AS section3,
+           COALESCE(l.section4,0)   AS section4
+    FROM teams t
+    LEFT JOIN leaderboard l ON l.team = t.team_id
+    ORDER BY total_score DESC, t.created_at ASC
+  `);
+  return res.rows;
+}
+
+async function updateTeam(teamId, { teamName, college, passwordHash }) {
+  const fields = [], vals = [];
+  if (teamName     !== undefined && teamName     !== null) { fields.push(`team_name=$${fields.length+1}`);     vals.push(teamName); }
+  if (college      !== undefined && college      !== null) { fields.push(`college=$${fields.length+1}`);       vals.push(college); }
+  if (passwordHash !== undefined && passwordHash !== null) { fields.push(`password_hash=$${fields.length+1}`); vals.push(passwordHash); }
+  if (!fields.length) return;
+  vals.push(teamId);
+  await q(`UPDATE teams SET ${fields.join(', ')} WHERE team_id=$${vals.length}`, vals);
+}
+
+async function deleteTeam(teamId) {
+  await q('DELETE FROM teams WHERE team_id=$1', [teamId]);
+}
+
+async function getTeamLeaderboard() {
+  const res = await q(`
+    SELECT t.team_id, t.team_name, t.college,
+           COALESCE(SUM(l.total_score),0) AS total_score,
+           COALESCE(MAX(l.section1),0)    AS section1,
+           COALESCE(MAX(l.section2),0)    AS section2,
+           COALESCE(MAX(l.section3),0)    AS section3,
+           COALESCE(MAX(l.section4),0)    AS section4,
+           COUNT(l.username)              AS member_count
+    FROM teams t
+    LEFT JOIN leaderboard l ON l.team = t.team_id
+    GROUP BY t.team_id, t.team_name, t.college
+    ORDER BY total_score DESC
+  `);
+  return res.rows;
+}
+
 module.exports = {
   pool, initDb,
   createStudent, getStudent, listStudents, updateLastLogin,
@@ -545,4 +621,5 @@ module.exports = {
   saveAntiCheatReport, findDuplicateSubmissionHash, countRecentSubmissions,
   listAntiCheatReports, getAntiCheatReport,
   logEditorActivity, getEditorActivityMetrics, listEditorActivityTimeline,
+  createTeam, getTeam, listTeams, updateTeam, deleteTeam, getTeamLeaderboard,
 };
