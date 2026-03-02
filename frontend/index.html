@@ -1300,9 +1300,19 @@ async function uploadCSV() {
 async function loadStudents() {
   const tbody = document.getElementById("students-body");
   tbody.innerHTML = `<tr><td colspan="10" class="muted">Loading…</td></tr>`;
-  const res  = await api("/api/admin/students");
-  const data = await res.json();
-  if (!res.ok || !data.students.length) {
+  let res, data;
+  try {
+    res  = await api("/api/admin/students");
+    data = await res.json();
+  } catch(e) {
+    tbody.innerHTML=`<tr><td colspan="10" class="fail" style="padding:16px">⚠ Network error: ${e.message}</td></tr>`;
+    return;
+  }
+  if (!res.ok) {
+    tbody.innerHTML=`<tr><td colspan="10" class="fail" style="padding:16px">⚠ ${data.detail||'Failed to load students'}</td></tr>`;
+    return;
+  }
+  if (!data.students || !data.students.length) {
     tbody.innerHTML=`<tr><td colspan="10" class="muted" style="padding:16px">No students registered yet</td></tr>`;
     return;
   }
@@ -1512,28 +1522,24 @@ async function resetLeaderboard() {
 async function loadAdminTimers() {
   const tbody = document.getElementById("timers-body");
   if (!tbody) return;
-  const res  = await api("/api/admin/timers");
+  // Use /api/timers/status so remaining_seconds is pre-computed server-side
+  const res  = await api("/api/timers/status");
+  if (!res.ok) {
+    tbody.innerHTML = `<tr><td colspan="6" class="fail" style="padding:12px">⚠ Failed to load timers</td></tr>`;
+    return;
+  }
   const data = await res.json();
   tbody.innerHTML = (data.timers || []).map(t => {
-    const elapsed   = t.elapsed_seconds || 0;
-    const totalSecs = t.duration_minutes * 60;
-    const isPaused  = t.is_active && t.paused_at;
-    const isRunning = t.is_active && !t.paused_at;
-    let remaining   = null;
-    if (t.is_active && t.start_time) {
-      if (isPaused) {
-        remaining = Math.max(0, totalSecs - elapsed);
-      } else {
-        const runSecs = Math.floor((Date.now() - new Date(t.start_time).getTime()) / 1000);
-        remaining = Math.max(0, totalSecs - elapsed - runSecs);
-      }
-    }
+    // remaining_seconds is pre-computed by server via /api/timers/status
+    const isPaused  = t.is_paused || false;
+    const isRunning = t.is_active && !isPaused;
+    let remaining   = t.remaining_seconds !== undefined ? t.remaining_seconds : null;
     function fmtTime(s) {
       if (s === null) return '—';
       const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
       return (h?h+'h ':'')+String(m).padStart(2,'0')+'m '+String(ss).padStart(2,'0')+'s';
     }
-    const notStarted = !t.is_active && !t.start_time;
+    const notStarted = !t.is_active && !t.start_time && remaining === null;
     let statusHtml;
     if (notStarted)                      statusHtml = `<span class="muted">○ Not started</span>`;
     else if (isPaused)                   statusHtml = `<span style="color:var(--yellow)">⏸ Paused</span>`;
@@ -1575,25 +1581,25 @@ async function startTimer(section) {
   const inp  = document.getElementById(`timer-dur-${section}`);
   const mins = inp ? parseInt(inp.value) : 45;
   if (!mins || mins < 1) { showAdminMsg("timers-msg","❌ Duration must be ≥ 1 min","err"); return; }
-  const res  = await api("/api/admin/timers","POST",{section, duration_minutes:mins, start_now:true});
+  const res  = await api(`/api/admin/timers/${section}/start`,"POST",{duration_minutes:mins});
   const data = await res.json();
   if (res.ok) {
     showAdminMsg("timers-msg",`✅ Section ${section} started (${mins} min) — download unlocked`,"ok");
-    loadTimers(); loadAdminTimers();
+    await loadTimers(); loadAdminTimers();
   } else { showAdminMsg("timers-msg","❌ "+data.detail,"err"); }
 }
 
 async function pauseTimer(section) {
-  const res  = await api(`/api/admin/timers/${section}/pause`,"PATCH");
+  const res  = await api(`/api/admin/timers/${section}/pause`,"POST");
   const data = await res.json();
-  if (res.ok) { showAdminMsg("timers-msg",`⏸ Section ${section} paused`,"ok"); loadTimers(); loadAdminTimers(); }
+  if (res.ok) { showAdminMsg("timers-msg",`⏸ Section ${section} paused`,"ok"); await loadTimers(); loadAdminTimers(); }
   else showAdminMsg("timers-msg","❌ "+(data.detail||'Error'),"err");
 }
 
 async function resumeTimer(section) {
-  const res  = await api(`/api/admin/timers/${section}/resume`,"PATCH");
+  const res  = await api(`/api/admin/timers/${section}/resume`,"POST");
   const data = await res.json();
-  if (res.ok) { showAdminMsg("timers-msg",`▶ Section ${section} resumed`,"ok"); loadTimers(); loadAdminTimers(); }
+  if (res.ok) { showAdminMsg("timers-msg",`▶ Section ${section} resumed`,"ok"); await loadTimers(); loadAdminTimers(); }
   else showAdminMsg("timers-msg","❌ "+(data.detail||'Error'),"err");
 }
 
@@ -1601,9 +1607,9 @@ async function stopTimer(section) {
   const ok = await showConfirm(`Stop Section ${section}?`,
     'Closes submissions. Download stays available. Use Reset to fully lock the section.');
   if (!ok) return;
-  const res  = await api(`/api/admin/timers/${section}/stop`,"PATCH");
+  const res  = await api(`/api/admin/timers/${section}/stop`,"POST");
   const data = await res.json();
-  if (res.ok) { showAdminMsg("timers-msg",`⏹ Section ${section} stopped`,"ok"); loadTimers(); loadAdminTimers(); }
+  if (res.ok) { showAdminMsg("timers-msg",`⏹ Section ${section} stopped`,"ok"); await loadTimers(); loadAdminTimers(); }
   else showAdminMsg("timers-msg","❌ "+(data.detail||'Error'),"err");
 }
 
