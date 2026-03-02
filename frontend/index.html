@@ -1300,7 +1300,11 @@ async function loadDashboardScores() {
   } catch {}
 }
 
+var _lockErrTs = 0;
 function showLockError(secId) {
+  const now = Date.now();
+  if (now - _lockErrTs < 3000) return; // debounce — max one toast per 3s
+  _lockErrTs = now;
   showToast(`🔒 Section ${secId} is locked — pass Section 1 first.`, 'warn');
 }
 
