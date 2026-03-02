@@ -1,15 +1,14 @@
 # Nixpacks config — Node.js 20 backend
-# package.json is in backend/ (Railway root dir)
+# Python installed via apt (nix python311 strips ensurepip/pip)
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "git", "python311"]
+nixPkgs = ["nodejs_20", "git"]
+aptPkgs = ["python3", "python3-pip"]
 
 [phases.install]
 cmds = [
   "npm install --omit=dev",
-  "python3 -m ensurepip",
-  "python3 -m pip install --upgrade pip --quiet",
-  "python3 -m pip install pytest pytest-json-report pytest-timeout --quiet"
+  "pip3 install pytest pytest-json-report pytest-timeout --quiet --break-system-packages"
 ]
 
 [start]
