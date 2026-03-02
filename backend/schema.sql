@@ -61,13 +61,17 @@ CREATE INDEX IF NOT EXISTS idx_lb_total ON leaderboard(total_score DESC);
 
 -- ── section_timers ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS section_timers (
-    section          INTEGER PRIMARY KEY,
-    duration_minutes INTEGER NOT NULL DEFAULT 45,
-    start_time       TIMESTAMPTZ,
-    is_active        BOOLEAN NOT NULL DEFAULT FALSE,
-    paused_at        TIMESTAMPTZ,
-    elapsed_seconds  INTEGER NOT NULL DEFAULT 0
+    section             INTEGER PRIMARY KEY,
+    duration_minutes    INTEGER NOT NULL DEFAULT 45,
+    start_time          TIMESTAMPTZ,
+    is_active           BOOLEAN NOT NULL DEFAULT FALSE,
+    paused_at           TIMESTAMPTZ,
+    elapsed_seconds     INTEGER NOT NULL DEFAULT 0,
+    submissions_locked  BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+-- Migration: add submissions_locked to existing deployments
+ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS submissions_locked BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Seed default timers (section durations in minutes)
 INSERT INTO section_timers (section, duration_minutes) VALUES

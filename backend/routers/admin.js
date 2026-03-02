@@ -238,6 +238,26 @@ router.post('/timers/:section/stop', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /timers/:section/lock-submissions
+router.post('/timers/:section/lock-submissions', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    await db.setSubmissionsLock(s, true);
+    res.json({ message: `Submissions locked for section ${s}` });
+  } catch (err) { next(err); }
+});
+
+// POST /timers/:section/unlock-submissions
+router.post('/timers/:section/unlock-submissions', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    await db.setSubmissionsLock(s, false);
+    res.json({ message: `Submissions unlocked for section ${s}` });
+  } catch (err) { next(err); }
+});
+
 // ── Anti-cheat monitor ────────────────────────────────────────────────────────
 
 router.get('/activity-monitor', requireAdmin, async (req, res, next) => {

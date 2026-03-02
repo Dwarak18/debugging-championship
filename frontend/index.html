@@ -974,12 +974,13 @@ async function loadTimers() {
     SECTION_TIMERS = {};
     (data.timers || []).forEach(t => {
       SECTION_TIMERS[t.section] = {
-        is_active:         t.is_active,
-        is_paused:         t.is_paused || false,
-        download_unlocked: t.download_unlocked || false,
-        remaining_seconds: t.remaining_seconds ?? null,
-        snapshot_at_ms:    Date.now(),
-        duration_minutes:  t.duration_minutes,
+        is_active:          t.is_active,
+        is_paused:          t.is_paused || false,
+        download_unlocked:  t.download_unlocked || false,
+        submissions_locked: t.submissions_locked || false,
+        remaining_seconds:  t.remaining_seconds ?? null,
+        snapshot_at_ms:     Date.now(),
+        duration_minutes:   t.duration_minutes,
       };
     });
     if (document.getElementById("sections-grid")) renderSectionsGrid();
@@ -1045,11 +1046,12 @@ function renderSectionsGrid() {
   const s2Done = SECTION_SCORES[2] > 0;
   const s3Done = SECTION_SCORES[3] > 0;
   grid.innerHTML = SECTIONS.map(s => {
-    // Section unlock (for validation)
+    // Section prerequisite lock (validation gating)
     const isLocked = s.id > 1 && !s1Done;
-    // Download locked unless admin has started (opened) that section
+    // Timer state for this section
     const timerState = SECTION_TIMERS[s.id];
-    const dlLocked = s.id > 1 && !(timerState && timerState.download_unlocked);
+    const isStarted  = timerState && timerState.is_active;
+    const isSubLocked = timerState && timerState.submissions_locked;
     return `
     <div class="section-card${isLocked ? ' locked' : ''}">
       <div class="sec-header">
@@ -1060,22 +1062,25 @@ function renderSectionsGrid() {
         <span>⏱ ${s.duration} min</span>
         <span>🏆 ${s.points} pts</span>
         <span>${s.diff}</span>
-        ${!isLocked ? `<span id="sec-timer-${s.id}" class="timer-badge"></span>` : ''}
+        ${isStarted ? `<span id="sec-timer-${s.id}" class="timer-badge"></span>` : ''}
       </div>
       ${isLocked
         ? `<span class="lock-badge">Complete &amp; pass Section 1 to unlock this section</span>`
-        : `<div style="display:flex;justify-content:flex-end;margin-top:10px">
-             ${dlLocked
-               ? `<button class="btn-sm" disabled title="Complete the previous section first"
-                    style="padding:4px 12px;font-size:.73rem;opacity:.45;cursor:not-allowed;
-                           background:var(--surface2);border:1px solid var(--border);
-                           color:var(--muted);border-radius:6px">🔒 Locked</button>`
-               : `<button class="btn-sm"
-                    style="padding:4px 12px;font-size:.73rem;background:var(--surface2);border:1px solid var(--border);
-                           color:var(--text);border-radius:6px;cursor:pointer"
-                    onclick="downloadSection(${s.id})">⬇ Download</button>`
-             }
-           </div>`
+        : isStarted
+          ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+               <button class="btn-sm"
+                 style="padding:4px 12px;font-size:.73rem;background:var(--surface2);border:1px solid var(--border);
+                        color:var(--text);border-radius:6px;cursor:pointer"
+                 onclick="downloadSection(${s.id})"><a style="color:inherit;text-decoration:none">⬇ Download Section ${s.id}</a></button>
+               ${isSubLocked
+                 ? `<span style="font-size:.72rem;font-weight:700;color:var(--red);padding:3px 9px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:20px">🔒 Submissions Closed</span>`
+                 : `<span style="font-size:.72rem;font-weight:700;color:var(--green);padding:3px 9px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:20px">▶ Open</span>`
+               }
+             </div>`
+          : `<div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+               <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted)"></span>
+               Waiting for section to be started by admin…
+             </div>`
       }
     </div>`;
   }).join("");
@@ -1150,6 +1155,23 @@ async function runValidation() {
   const url    = document.getElementById("github-url").value.trim();
   const panel  = document.getElementById("val-result");
   const btn    = document.getElementById("val-btn");
+
+  // ── Check section open / submissions lock ─────────────────────────────
+  const curTimer = SECTION_TIMERS[VAL_SEC];
+  if (curTimer && !curTimer.is_active) {
+    panel.innerHTML = `<div class="result-err">
+      ⏳ <strong>Section ${VAL_SEC} has not been started yet.</strong><br>
+      Wait for the administrator to open this section before submitting.
+    </div>`;
+    return;
+  }
+  if (curTimer && curTimer.submissions_locked) {
+    panel.innerHTML = `<div class="result-err">
+      🔒 <strong>Section ${VAL_SEC} submissions are locked.</strong><br>
+      The administrator has closed submissions for this section. No more scores will be accepted.
+    </div>`;
+    return;
+  }
 
   // ── Require GitHub username ────────────────────────────────────────────
   if (!GITHUB_USERNAME) {

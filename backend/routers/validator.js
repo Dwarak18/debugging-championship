@@ -100,6 +100,10 @@ router.post('/section', requireAuth, async (req, res, next) => {
 
   // ── Timer check ──────────────────────────────────────────────────────────
   const timer = await db.getSectionTimer(section);
+  if (timer && timer.submissions_locked)
+    return res.status(423).json({ detail: `Section ${section} submissions are locked by the administrator.` });
+  if (timer && !timer.is_active)
+    return res.status(403).json({ detail: `Section ${section} has not been started yet by the administrator.` });
   if (timer && timer.is_active && timer.start_time) {
     const start    = new Date(timer.start_time);
     const pausedAt = timer.paused_at ? new Date(timer.paused_at) : null;

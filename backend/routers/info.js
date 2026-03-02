@@ -53,15 +53,16 @@ router.get('/timers/status', requireAuth, async (_req, res, next) => {
       }
 
       return {
-        section:           row.section,
-        duration_minutes:  row.duration_minutes,
-        start_time:        start ? start.toISOString() : null,
-        paused_at:         pausedAt ? pausedAt.toISOString() : null,
-        elapsed_seconds:   elapsed,
-        is_active:         isActive,
-        is_paused:         isPaused,
-        download_unlocked: isActive,
-        remaining_seconds: remaining,
+        section:            row.section,
+        duration_minutes:   row.duration_minutes,
+        start_time:         start ? start.toISOString() : null,
+        paused_at:          pausedAt ? pausedAt.toISOString() : null,
+        elapsed_seconds:    elapsed,
+        is_active:          isActive,
+        is_paused:          isPaused,
+        download_unlocked:  isActive,
+        submissions_locked: row.submissions_locked || false,
+        remaining_seconds:  remaining,
       };
     });
     res.json({ timers: result });

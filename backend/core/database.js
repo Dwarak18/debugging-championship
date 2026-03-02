@@ -357,9 +357,13 @@ async function stopSectionTimer(section) {
 async function resetSectionTimer(section) {
   await q(`
     UPDATE section_timers
-    SET is_active=FALSE, start_time=NULL, paused_at=NULL, elapsed_seconds=0
+    SET is_active=FALSE, start_time=NULL, paused_at=NULL, elapsed_seconds=0, submissions_locked=FALSE
     WHERE section=$1
   `, [section]);
+}
+
+async function setSubmissionsLock(section, locked) {
+  await q('UPDATE section_timers SET submissions_locked=$2 WHERE section=$1', [section, !!locked]);
 }
 
 async function getSectionTimer(section) {
@@ -524,7 +528,7 @@ module.exports = {
   updateStudent, resetStudentPassword, deactivateStudent, reactivateStudent, updateGithubUsername,
   upsertScore, getLeaderboard, getUserScores, getSubmissionsLog, resetLeaderboard,
   setSectionTimer, pauseSectionTimer, resumeSectionTimer, stopSectionTimer,
-  resetSectionTimer, getSectionTimer, getAllSectionTimers,
+  resetSectionTimer, getSectionTimer, getAllSectionTimers, setSubmissionsLock,
   saveAntiCheatReport, findDuplicateSubmissionHash, countRecentSubmissions,
   listAntiCheatReports, getAntiCheatReport,
   logEditorActivity, getEditorActivityMetrics, listEditorActivityTimeline,

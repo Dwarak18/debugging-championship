@@ -215,8 +215,9 @@
 
     /* ── Feedback banners ─────────────────────────── */
     .msg { padding: 10px 14px; border-radius: 8px; font-size: .83rem; margin-top: 10px; }
-    .msg-ok  { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
-    .msg-err { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: var(--red); }
+    .msg-ok   { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
+    .msg-err  { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: var(--red); }
+    .msg-warn { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); color: var(--amber); }
 
     /* ── Modal ────────────────────────────────────── */
     .modal-overlay {
@@ -421,9 +422,11 @@
         <span style="font-size:.83rem;color:var(--amber)">
           ▶ <strong>Start</strong> opens the section (unlocks downloads + validation). &nbsp;
           ⏸ <strong>Pause</strong> freezes the timer. &nbsp;
-          ⏹ <strong>Stop</strong> closes the section and locks it.
+          ⏹ <strong>Stop</strong> closes the section and locks it. &nbsp;
+          🔒 <strong>Lock Submissions</strong> prevents new scores from being recorded without stopping the timer.
         </span>
       </div>
+      <div id="timers-msg" style="margin-bottom:8px"></div>
       <div class="timer-grid" id="timer-grid">
         <div style="color:var(--muted);padding:20px">Loading timers…</div>
       </div>
@@ -762,11 +765,12 @@ function storeTimerState(timersArr) {
   const now = Date.now();
   (timersArr || []).forEach(t => {
     TIMER_STATE[t.section] = {
-      is_active:         t.is_active        || false,
-      is_paused:         t.is_paused        || false,
-      remaining_seconds: t.remaining_seconds != null ? t.remaining_seconds : (SECTION_DURATIONS[t.section] * 60),
-      duration_minutes:  t.duration_minutes  || SECTION_DURATIONS[t.section],
-      snapshot_at_ms:    now,
+      is_active:          t.is_active        || false,
+      is_paused:          t.is_paused        || false,
+      submissions_locked: t.submissions_locked || false,
+      remaining_seconds:  t.remaining_seconds != null ? t.remaining_seconds : (SECTION_DURATIONS[t.section] * 60),
+      duration_minutes:   t.duration_minutes  || SECTION_DURATIONS[t.section],
+      snapshot_at_ms:     now,
     };
   });
 }
@@ -873,6 +877,7 @@ function applyTimerDom(s) {
   }
   // Buttons
   if (actEl) {
+    const isLocked = !!t.submissions_locked;
     actEl.innerHTML = [
       !isActive
         ? `<button class="btn btn-green" onclick="timerAction(${s},'start')">▶ Start</button>`
@@ -881,6 +886,11 @@ function applyTimerDom(s) {
           : `<button class="btn btn-amber" onclick="timerAction(${s},'pause')">⏸ Pause</button>`,
       isActive ? `<button class="btn btn-danger" onclick="timerAction(${s},'stop')">⏹ Stop</button>` : '',
       `<button class="btn" style="border:1px solid var(--border);color:var(--muted)" onclick="timerAction(${s},'reset')">↺ Reset</button>`,
+      isActive
+        ? isLocked
+          ? `<button class="btn" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:var(--red);font-weight:700" onclick="lockSubmissions(${s},false)">🔒 Unlock Submissions</button>`
+          : `<button class="btn" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--amber);font-weight:700" onclick="lockSubmissions(${s},true)">🔒 Lock Submissions</button>`
+        : '',
     ].join('');
   }
 }
@@ -940,6 +950,18 @@ async function timerAction(section, action) {
   await fetchAndSyncTimers();
   if (document.getElementById('page-timers')?.classList.contains('active')) renderTimerGrid();
   loadOverview();
+}
+
+async function lockSubmissions(section, lock) {
+  const action = lock ? 'lock-submissions' : 'unlock-submissions';
+  const res = await api(`/api/admin/timers/${section}/${action}`, "POST");
+  if (!res.ok) { const d = await res.json(); alert(d.detail || "Action failed"); return; }
+  const msgEl = document.getElementById('timers-msg');
+  if (msgEl) showMsg(msgEl, `Section ${section} submissions ${lock ? '🔒 locked' : '🔓 unlocked'}.`, lock ? 'warn' : 'ok');
+  await fetchAndSyncTimers();
+  if (document.getElementById('page-timers')?.classList.contains('active')) {
+    document.getElementById(`timer-card-${section}`) ? applyTimerDom(section) : renderTimerGrid();
+  }
 }
 
 async function unlockAllSections() {
