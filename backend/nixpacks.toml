@@ -2,12 +2,13 @@
 # package.json is in backend/ (Railway root dir)
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "git", "python311", "python311Packages.pip"]
+nixPkgs = ["nodejs_20", "git", "python311", "python311Packages.pytest", "python311Packages.pytestTimeout"]
 
 [phases.install]
 cmds = [
   "npm install --omit=dev",
-  "python3 -m pip install pytest pytest-json-report pytest-timeout --quiet"
+  "python3 -m ensurepip --upgrade",
+  "python3 -m pip install pytest-json-report --quiet"
 ]
 
 [start]
