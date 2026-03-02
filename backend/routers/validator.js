@@ -123,14 +123,32 @@ router.post('/section', requireAuth, async (req, res, next) => {
   }
 
   const teamId = req.user.team || req.user.sub || 'unknown';
+
+  // ── GitHub username enforcement ────────────────────────────────────────────
+  const student = await db.getStudent(req.user.sub);
+  const regGhUser = student ? (student.github_username || '').trim().toLowerCase() : '';
+  if (!regGhUser)
+    return res.status(422).json({ detail: 'You must set a GitHub username on the Dashboard before validating.' });
+
+  // Extract owner from the submitted URL: https://github.com/<owner>/<repo>
+  const ghUrlMatch = githubUrl.match(/^https:\/\/github\.com\/([^\/]+)\/([^\/]+?)(\.git)?$/i);
+  if (!ghUrlMatch)
+    return res.status(422).json({ detail: 'Invalid GitHub URL. Use the format: https://github.com/owner/repo' });
+  const repoOwner = ghUrlMatch[1].toLowerCase();
+  if (repoOwner !== regGhUser)
+    return res.status(403).json({
+      detail: `Repository owner "${ghUrlMatch[1]}" does not match your registered GitHub username "${student.github_username}". You may only submit from your own account.`,
+    });
+
   let tmpdir = null;
   let reportPath = null;
 
   try {
     tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), 'dc_validate_'));
 
-    // ── Clone ──────────────────────────────────────────────────────────────
+    // ── Clone ───────────────────────────────────────────────────────────────────────
     await gitClone(githubUrl, tmpdir);
+
 
     // ── Verify tests exist ─────────────────────────────────────────────────
     const testPath = path.join(tmpdir, SECTION_TESTS[section]);

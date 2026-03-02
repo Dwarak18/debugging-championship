@@ -86,12 +86,16 @@ async function initDb() {
       start_time       TIMESTAMPTZ,
       is_active        BOOLEAN DEFAULT FALSE,
       paused_at        TIMESTAMPTZ,
-      elapsed_seconds  INTEGER DEFAULT 0
+      elapsed_seconds  INTEGER DEFAULT 0,
+      submissions_locked BOOLEAN NOT NULL DEFAULT FALSE
     );
 
     INSERT INTO section_timers (section, duration_minutes)
     VALUES (1,45),(2,40),(3,50),(4,35)
     ON CONFLICT (section) DO NOTHING;
+
+    -- Migration: add submissions_locked for existing deployments
+    ALTER TABLE section_timers ADD COLUMN IF NOT EXISTS submissions_locked BOOLEAN NOT NULL DEFAULT FALSE;
 
     CREATE TABLE IF NOT EXISTS anti_cheat_reports (
       id                           SERIAL PRIMARY KEY,

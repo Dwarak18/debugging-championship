@@ -921,22 +921,38 @@ function showApp() {
   loadTimers().then(startTimerTick);
   // Poll timer state every 20s so download buttons auto-enable when admin starts a section
   setInterval(() => loadTimers(), 20000);
-  // Pre-fill GitHub username if saved
-  const ghInput = document.getElementById("github-username-input");
-  if (ghInput && GITHUB_USERNAME) {
-    ghInput.value = GITHUB_USERNAME;
-    document.getElementById("github-username-msg").textContent =
-      `✅ Saved: ${GITHUB_USERNAME}`;
-    document.getElementById("github-username-msg").style.color = "var(--green)";
-  }
+  // Load saved GitHub username from backend (overrides localStorage)
+  loadGithubUsername();
   initCopyPasteMonitor();
 }
 
 // ── GitHub Username ────────────────────────────────────────────────────────
-function saveGithubUsername() {
+async function loadGithubUsername() {
+  try {
+    const res  = await api("/api/auth/me");
+    if (!res.ok) return;
+    const data = await res.json();
+    const gh   = data.github_username || '';
+    if (gh) {
+      GITHUB_USERNAME = gh;
+      localStorage.setItem("dc_github", gh);
+    }
+    const inp = document.getElementById("github-username-input");
+    const msg = document.getElementById("github-username-msg");
+    if (inp) inp.value = GITHUB_USERNAME || '';
+    if (msg && GITHUB_USERNAME) {
+      msg.style.color = "var(--green)";
+      msg.textContent = `✅ Verified & saved: ${GITHUB_USERNAME}`;
+    }
+  } catch {}
+}
+
+async function saveGithubUsername() {
   const inp = document.getElementById("github-username-input");
   const msg = document.getElementById("github-username-msg");
+  const btn = document.querySelector('[onclick="saveGithubUsername()"]');
   const val = inp.value.trim();
+
   if (!val) {
     msg.style.color = "var(--red)";
     msg.textContent = "❌ Please enter a GitHub username.";
@@ -947,10 +963,56 @@ function saveGithubUsername() {
     msg.textContent = "❌ Invalid GitHub username. Use only letters, numbers, and hyphens.";
     return;
   }
-  GITHUB_USERNAME = val;
-  localStorage.setItem("dc_github", val);
-  msg.style.color = "var(--green)";
-  msg.textContent = `✅ Saved: ${val}`;
+
+  // Step 1: Check GitHub API client-side to verify user exists
+  msg.style.color = "var(--muted)";
+  msg.textContent = "⏳ Verifying GitHub username…";
+  if (btn) btn.disabled = true;
+
+  try {
+    const ghRes = await fetch(`https://api.github.com/users/${encodeURIComponent(val)}`, {
+      headers: { 'Accept': 'application/vnd.github+json' },
+    });
+    if (ghRes.status === 404) {
+      msg.style.color = "var(--red)";
+      msg.textContent = `❌ GitHub user "${val}" does not exist. Check your spelling.`;
+      return;
+    }
+    if (ghRes.ok) {
+      const ghData = await ghRes.json();
+      // Use exact casing GitHub returns (login field)
+      const realLogin = ghData.login || val;
+      inp.value = realLogin; // correct casing in the input
+    }
+  } catch {
+    msg.style.color = "var(--amber)";
+    msg.textContent = "⚠️ Could not reach GitHub API — saving anyway…";
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+
+  const corrected = inp.value.trim();
+
+  // Step 2: Save to backend (also validates server-side via GitHub API)
+  try {
+    const saveRes = await api("/api/auth/me/github", "PUT", { github_username: corrected });
+    const saveData = await saveRes.json();
+    if (!saveRes.ok) {
+      msg.style.color = "var(--red)";
+      msg.textContent = `❌ ${saveData.detail || 'Save failed'}`;
+      return;
+    }
+    GITHUB_USERNAME = corrected;
+    localStorage.setItem("dc_github", corrected);
+    msg.style.color = "var(--green)";
+    msg.textContent = `✅ Verified & saved: ${corrected}`;
+  } catch(e) {
+    // Backend unreachable — save locally
+    GITHUB_USERNAME = corrected;
+    localStorage.setItem("dc_github", corrected);
+    msg.style.color = "var(--amber)";
+    msg.textContent = `⚠️ Saved locally: ${corrected}. Will sync on next load.`;
+  }
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────
