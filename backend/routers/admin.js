@@ -238,6 +238,18 @@ router.post('/timers/:section/stop', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /timers/:section/set-duration — update duration without changing active state
+router.post('/timers/:section/set-duration', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    const mins = parseInt(req.body.duration_minutes, 10);
+    if (!mins || mins < 1 || mins > 300) return res.status(422).json({ detail: 'duration_minutes must be 1–300' });
+    await db.setTimerDuration(s, mins);
+    res.json({ message: `Duration updated for section ${s}`, duration_minutes: mins });
+  } catch (err) { next(err); }
+});
+
 // POST /timers/:section/lock-submissions
 router.post('/timers/:section/lock-submissions', requireAdmin, async (req, res, next) => {
   try {

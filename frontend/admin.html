@@ -824,6 +824,15 @@ function renderTimerGrid() {
         <div class="timer-progress">
           <div class="timer-progress-fill" id="timer-prog-${s}" style="width:${pct}%"></div>
         </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:10px" id="timer-dur-row-${s}">
+          <span style="font-size:.73rem;color:var(--muted)">Duration:</span>
+          <input type="number" id="timer-dur-${s}" min="1" max="300"
+            value="${t.duration_minutes || SECTION_DURATIONS[s]}"
+            style="width:60px;padding:3px 6px;font-size:.78rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);text-align:center">
+          <span style="font-size:.73rem;color:var(--muted)">min</span>
+          <button class="btn" id="timer-dur-btn-${s}" onclick="setTimerDuration(${s})"
+            style="font-size:.73rem;padding:3px 10px;border:1px solid var(--border);color:var(--green)">✓ Set</button>
+        </div>
         <div class="timer-actions" id="timer-actions-${s}"></div>
       </div>`;
   }).join("");
@@ -875,6 +884,19 @@ function applyTimerDom(s) {
     else if (isPaused) cardEl.classList.add('tc-paused');
     else if (isActive) cardEl.classList.add('tc-running');
   }
+  // Duration input — enable only when stopped
+  const durEl    = document.getElementById(`timer-dur-${s}`);
+  const durBtnEl = document.getElementById(`timer-dur-btn-${s}`);
+  if (durEl) {
+    durEl.disabled    = isActive;
+    durEl.style.opacity = isActive ? '0.45' : '1';
+    if (!isActive && t.duration_minutes) durEl.value = t.duration_minutes;
+  }
+  if (durBtnEl) {
+    durBtnEl.disabled = isActive;
+    durBtnEl.style.opacity = isActive ? '0.45' : '1';
+  }
+
   // Buttons
   if (actEl) {
     actEl.innerHTML = [
@@ -938,8 +960,25 @@ async function fetchAndSyncTimers() {
   } catch {}
 }
 
+async function setTimerDuration(section) {
+  const input = document.getElementById(`timer-dur-${section}`);
+  const mins  = input ? parseInt(input.value, 10) : NaN;
+  if (!mins || mins < 1 || mins > 300) { alert('Enter a valid duration (1–300 min)'); return; }
+  const res = await api(`/api/admin/timers/${section}/set-duration`, 'POST', { duration_minutes: mins });
+  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Failed to set duration'); return; }
+  const msgEl = document.getElementById('timers-msg');
+  if (msgEl) showMsg(msgEl, `Section ${section} duration set to ${mins} min.`, 'ok');
+  await fetchAndSyncTimers();
+}
+
 async function timerAction(section, action) {
-  const res = await api(`/api/admin/timers/${section}/${action}`, "POST");
+  let body = undefined;
+  if (action === 'start') {
+    const input = document.getElementById(`timer-dur-${section}`);
+    const mins  = input ? parseInt(input.value, 10) : NaN;
+    if (mins && mins > 0) body = { duration_minutes: mins };
+  }
+  const res = await api(`/api/admin/timers/${section}/${action}`, 'POST', body || undefined);
   if (!res.ok) { const d = await res.json(); alert(d.detail || "Timer action failed"); return; }
   await fetchAndSyncTimers();
   if (document.getElementById('page-timers')?.classList.contains('active')) renderTimerGrid();
