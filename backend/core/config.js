@@ -10,9 +10,12 @@ module.exports = {
   ADMIN_PASSWORD:              process.env.ADMIN_PASSWORD              || 'heisenberg',
   API_TOKEN_EXPIRE_MINUTES:    parseInt(process.env.API_TOKEN_EXPIRE_MINUTES || '480', 10),
 
-  // App
-  ENV:                         process.env.ENV                         || 'development',
-  REPO_ROOT:                   process.env.REPO_ROOT                   || '/app',
+  // REPO_ROOT: where the section folders live.
+  // On Railway with root dir = backend/, the app runs inside /app (= backend/).
+  // The section dirs are one level up at /app/.. in the cloned repo.
+  // Override via REPO_ROOT env var if needed.
+  ENV:       process.env.ENV || 'development',
+  REPO_ROOT: process.env.REPO_ROOT || require('path').resolve(__dirname, '..', '..'),
   PYTEST_TIMEOUT:              parseInt(process.env.PYTEST_TIMEOUT     || '60', 10),
 
   // CORS

@@ -140,6 +140,7 @@ router.get('/timers', requireAdmin, async (_req, res, next) => {
   catch (err) { next(err); }
 });
 
+// POST /timers (body: { section, duration_minutes })
 router.post('/timers', requireAdmin, async (req, res, next) => {
   try {
     const { section, duration_minutes = 45 } = req.body;
@@ -147,6 +148,27 @@ router.post('/timers', requireAdmin, async (req, res, next) => {
       return res.status(422).json({ detail: 'section must be 1–4' });
     await db.setSectionTimer(section, duration_minutes);
     res.json({ message: `Timer started for section ${section}`, duration_minutes });
+  } catch (err) { next(err); }
+});
+
+// POST /timers/:section/start  — start/restart a section timer
+router.post('/timers/:section/start', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    const mins = parseInt(req.query.duration_minutes || req.body.duration_minutes, 10) || 45;
+    await db.setSectionTimer(s, mins);
+    res.json({ message: `Timer started for section ${s}`, duration_minutes: mins });
+  } catch (err) { next(err); }
+});
+
+// POST /timers/:section/reset  — reset a section timer back to stopped
+router.post('/timers/:section/reset', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    await db.resetSectionTimer(s);
+    res.json({ message: `Timer reset for section ${s}` });
   } catch (err) { next(err); }
 });
 
@@ -168,6 +190,16 @@ router.patch('/timers/:section/pause', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /timers/:section/pause  — also accept POST for pause (frontend uses POST for all actions)
+router.post('/timers/:section/pause', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    await db.pauseSectionTimer(s);
+    res.json({ message: `Timer paused for section ${s}` });
+  } catch (err) { next(err); }
+});
+
 router.patch('/timers/:section/resume', requireAdmin, async (req, res, next) => {
   try {
     const s = parseInt(req.params.section, 10);
@@ -177,7 +209,27 @@ router.patch('/timers/:section/resume', requireAdmin, async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
+// POST /timers/:section/resume
+router.post('/timers/:section/resume', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    await db.resumeSectionTimer(s);
+    res.json({ message: `Timer resumed for section ${s}` });
+  } catch (err) { next(err); }
+});
+
 router.patch('/timers/:section/stop', requireAdmin, async (req, res, next) => {
+  try {
+    const s = parseInt(req.params.section, 10);
+    if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
+    await db.stopSectionTimer(s);
+    res.json({ message: `Section ${s} stopped — submissions closed` });
+  } catch (err) { next(err); }
+});
+
+// POST /timers/:section/stop
+router.post('/timers/:section/stop', requireAdmin, async (req, res, next) => {
   try {
     const s = parseInt(req.params.section, 10);
     if (![1,2,3,4].includes(s)) return res.status(422).json({ detail: 'section must be 1–4' });
